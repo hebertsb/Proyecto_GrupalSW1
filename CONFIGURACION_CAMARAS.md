@@ -33,18 +33,20 @@ enfoque, y puede correr en segundo plano.
    corra en segundo plano (para que no se corte si bloqueas la pantalla).
 4. Baja hasta el final y toca **"Iniciar servidor"**.
 5. La app mostrará algo como:
+
    ```
    IPv4: http://192.168.1.X:8080
    ```
+
    Esa es la IP y puerto que vas a usar. **Anótala.**
    Configura así en el panel (/configuracion/camaras, editar "camara celular 1" o cualquiera de las otras 3):
 
-Protocolo: http
-IP / Host: 192.168.1.8
-Puerto: 8080
-Usuario / Contraseña: vacío (dice "no establecido")
-Ruta: /video
-URL final: http://192.168.1.8:8080/video
+6. Protocolo: http
+7. IP / Host: 192.168.1.8
+8. Puerto: 8080
+9. Usuario / Contraseña: vacío (dice "no establecido")
+10. Ruta: /video
+11. URL final: http://192.168.1.8:8080/video
 
 Luego Probar conexión → Guardar.
 
