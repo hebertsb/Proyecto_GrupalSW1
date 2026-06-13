@@ -17,11 +17,11 @@ export class ListaEventosComponent implements OnInit {
   readonly filtro   = signal<EstadoEvento | ''>('');
 
   readonly estados: { valor: EstadoEvento | ''; etiqueta: string }[] = [
-    { valor: '',              etiqueta: 'Todos' },
-    { valor: 'pendiente',     etiqueta: 'Pendiente' },
-    { valor: 'en_revision',   etiqueta: 'En revisión' },
-    { valor: 'resuelto',      etiqueta: 'Resuelto' },
-    { valor: 'falso_positivo',etiqueta: 'Falso positivo' },
+    { valor: '',             etiqueta: 'Todos' },
+    { valor: 'pendiente',    etiqueta: 'Pendiente' },
+    { valor: 'en_atencion',  etiqueta: 'En Atención' },
+    { valor: 'resuelto',     etiqueta: 'Resuelto' },
+    { valor: 'falsa_alarma', etiqueta: 'Falsa Alarma' },
   ];
 
   constructor(private eventosSrv: EventosServicio) {}
@@ -48,10 +48,10 @@ export class ListaEventosComponent implements OnInit {
 
   claseEstado(estado: string): string {
     const mapa: Record<string, string> = {
-      pendiente:      'estado--pendiente',
-      en_revision:    'estado--revision',
-      resuelto:       'estado--resuelto',
-      falso_positivo: 'estado--falso',
+      pendiente:    'estado--pendiente',
+      en_atencion:  'estado--revision',
+      resuelto:     'estado--resuelto',
+      falsa_alarma: 'estado--falso',
     };
     return mapa[estado] ?? '';
   }

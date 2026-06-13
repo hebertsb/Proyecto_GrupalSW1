@@ -16,7 +16,7 @@ export class GestionCamarasComponent implements OnInit {
   readonly cargando  = signal(true);
   readonly modalOpen = signal(false);
 
-  nueva: Partial<Camara> = { tipo_stream: 'mjpeg', activa: true };
+  nueva: Partial<Camara> = { is_active: true };
 
   constructor(private srv: CamarasServicio) {}
 
@@ -32,7 +32,7 @@ export class GestionCamarasComponent implements OnInit {
   guardar() {
     this.srv.crear(this.nueva).subscribe(() => {
       this.modalOpen.set(false);
-      this.nueva = { tipo_stream: 'mjpeg', activa: true };
+      this.nueva = { is_active: true };
       this.cargar();
     });
   }
@@ -43,6 +43,6 @@ export class GestionCamarasComponent implements OnInit {
   }
 
   alternarActiva(cam: Camara) {
-    this.srv.actualizar(cam.camara_id, { activa: !cam.activa }).subscribe(() => this.cargar());
+    this.srv.actualizar(cam.camara_id, { is_active: !cam.is_active }).subscribe(() => this.cargar());
   }
 }

@@ -18,9 +18,9 @@ class _PantallaEventosState extends ConsumerState<PantallaEventos> {
   static const _filtros = [
     {'valor': null,              'etiqueta': 'Todos'},
     {'valor': 'pendiente',       'etiqueta': 'Pendiente'},
-    {'valor': 'en_revision',     'etiqueta': 'En revisión'},
+    {'valor': 'en_atencion',     'etiqueta': 'En Atención'},
     {'valor': 'resuelto',        'etiqueta': 'Resuelto'},
-    {'valor': 'falso_positivo',  'etiqueta': 'Falso+'},
+    {'valor': 'falsa_alarma',    'etiqueta': 'Falsa alarma'},
   ];
 
   @override
@@ -97,9 +97,9 @@ class _TarjetaEvento extends ConsumerWidget {
 
   Color _colorEstado(String estado) => switch (estado) {
     'pendiente'      => kAdvertencia,
-    'en_revision'    => kPrimario,
+    'en_atencion'    => kPrimario,
     'resuelto'       => kExito,
-    'falso_positivo' => kTexto2Oscuro,
+    'falsa_alarma'   => kTexto2Oscuro,
     _                => kTexto2Oscuro,
   };
 
@@ -150,13 +150,13 @@ class _TarjetaEvento extends ConsumerWidget {
                 Text('Regla: ${evento.reglaNombre ?? evento.reglaId}',
                   style: const TextStyle(fontSize: 12, color: kTexto2Oscuro)),
                 const Spacer(),
-                Text('${(evento.confianza * 100).toStringAsFixed(0)}% confianza',
-                  style: TextStyle(fontSize: 12, color: evento.confianza >= 0.8 ? kPeligro : kTexto2Oscuro,
+                Text('${(evento.confianzaIa * 100).toStringAsFixed(0)}% confianza',
+                  style: TextStyle(fontSize: 12, color: evento.confianzaIa >= 0.8 ? kPeligro : kTexto2Oscuro,
                     fontWeight: FontWeight.w700)),
               ],
             ),
             const SizedBox(height: 4),
-            Text(evento.creadoEn.substring(0, 16).replaceFirst('T', ' '),
+            Text(evento.timestampDeteccion.substring(0, 16).replaceFirst('T', ' '),
               style: const TextStyle(fontSize: 11, color: kTexto2Oscuro)),
 
             if (evento.estado == 'pendiente') ...[
@@ -165,13 +165,13 @@ class _TarjetaEvento extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   _BotonAccion(icono: Icons.search,        etiqueta: 'Revisar',  color: kPrimario,
-                    onTap: () => _cambiarEstado(context, ref, 'en_revision')),
+                    onTap: () => _cambiarEstado(context, ref, 'en_atencion')),
                   const SizedBox(width: 8),
                   _BotonAccion(icono: Icons.check_circle,  etiqueta: 'Resolver', color: kExito,
                     onTap: () => _cambiarEstado(context, ref, 'resuelto')),
                   const SizedBox(width: 8),
                   _BotonAccion(icono: Icons.cancel,        etiqueta: 'Falso+',  color: kTexto2Oscuro,
-                    onTap: () => _cambiarEstado(context, ref, 'falso_positivo')),
+                    onTap: () => _cambiarEstado(context, ref, 'falsa_alarma')),
                 ],
               ),
             ],

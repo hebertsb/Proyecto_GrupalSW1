@@ -1,10 +1,7 @@
 export interface Camara {
-  camara_id: number;
-  condominio_id: number;
-  nombre: string;
-  ubicacion: string;
-  tipo_stream: 'mjpeg' | 'hls' | 'archivo';
-  url_stream: string;
-  activa: boolean;
-  created_at?: string;
+  camara_id:        number;
+  condominio_id:    number;
+  nombre_ubicacion: string;
+  rtsp_url:         string;
+  is_active:        boolean;
 }

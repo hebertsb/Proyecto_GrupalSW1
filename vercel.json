@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "buildCommand": "cd apps/web && rm -rf node_modules package-lock.json && npm install --force && npm run build",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "echo 'Skipping root install to avoid dependency conflicts'",
+  "framework": null
+}

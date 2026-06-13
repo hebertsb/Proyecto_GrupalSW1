@@ -60,12 +60,12 @@
       <div class="lista-lateral__item"
            [class.lista-lateral__item--activo]="camaraFoco()?.camara_id === cam.camara_id"
            (click)="seleccionarCamara(cam)">
-        <span class="material-icons lista-lateral__icono">{{ cam.activa ? 'videocam' : 'videocam_off' }}</span>
+        <span class="material-icons lista-lateral__icono">{{ cam.is_active ? 'videocam' : 'videocam_off' }}</span>
         <div class="lista-lateral__info">
-          <span class="lista-lateral__nombre">{{ cam.nombre }}</span>
-          <span class="lista-lateral__ubicacion">{{ cam.ubicacion }}</span>
+          <span class="lista-lateral__nombre">{{ cam.nombre_ubicacion }}</span>
+          <span class="lista-lateral__ubicacion">{{ cam.rtsp_url }}</span>
         </div>
-        <span class="lista-lateral__punto" [class.lista-lateral__punto--activo]="cam.activa"></span>
+        <span class="lista-lateral__punto" [class.lista-lateral__punto--activo]="cam.is_active"></span>
       </div>
     }
   </div>

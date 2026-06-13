@@ -7,6 +7,6 @@ final camarasProvider = FutureProvider<List<Camara>>((ref) async {
   final resp = await http.get('/camaras/');
   return (resp.data as List)
       .map((e) => Camara.fromJson(e as Map<String, dynamic>))
-      .where((c) => c.activa)
+      .where((c) => c.isActive)
       .toList();
 });

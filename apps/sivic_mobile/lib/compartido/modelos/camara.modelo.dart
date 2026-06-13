@@ -1,26 +1,20 @@
 class Camara {
   final int    camaraId;
-  final String nombre;
-  final String ubicacion;
-  final String tipoStream;
-  final String urlStream;
-  final bool   activa;
+  final String nombreUbicacion;
+  final String rtspUrl;
+  final bool   isActive;
 
   const Camara({
     required this.camaraId,
-    required this.nombre,
-    required this.ubicacion,
-    required this.tipoStream,
-    required this.urlStream,
-    required this.activa,
+    required this.nombreUbicacion,
+    required this.rtspUrl,
+    required this.isActive,
   });
 
   factory Camara.fromJson(Map<String, dynamic> json) => Camara(
-    camaraId:   json['camara_id'] as int,
-    nombre:     json['nombre'] as String,
-    ubicacion:  json['ubicacion'] as String,
-    tipoStream: json['tipo_stream'] as String,
-    urlStream:  json['url_stream'] as String,
-    activa:     json['activa'] as bool,
+    camaraId:        json['camara_id'] as int,
+    nombreUbicacion: json['nombre_ubicacion'] as String,
+    rtspUrl:         json['rtsp_url'] as String,
+    isActive:        json['is_active'] as bool,
   );
 }

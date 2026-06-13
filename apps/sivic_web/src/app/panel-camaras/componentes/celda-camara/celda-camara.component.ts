@@ -31,6 +31,10 @@ export class CeldaCamaraComponent implements OnInit, OnDestroy {
   alError()   { this.cargando.set(false); this.errorStream.set(true);  }
 
   obtenerUrl(): string {
-    return this.camara.url_stream;
+    return this.camara.rtsp_url;
+  }
+
+  esMjpeg(): boolean {
+    return this.camara.rtsp_url.includes('/video') || this.camara.rtsp_url.startsWith('http');
   }
 }

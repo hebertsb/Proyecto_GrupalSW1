@@ -80,8 +80,8 @@ class _CeldaCamaraState extends State<_CeldaCamara> {
   @override
   void initState() {
     super.initState();
-    if (widget.camara.tipoStream == 'archivo' || widget.camara.tipoStream == 'hls') {
-      _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.camara.urlStream))
+    if (!widget.camara.rtspUrl.contains('/video')) {
+      _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.camara.rtspUrl))
         ..initialize().then((_) {
           _ctrl!.play();
           _ctrl!.setLooping(true);
@@ -123,8 +123,8 @@ class _CeldaCamaraState extends State<_CeldaCamara> {
                   SizedBox(height: 6),
                   Text('Sin señal', style: TextStyle(color: kPeligro, fontSize: 11)),
                 ])
-              else if (widget.camara.tipoStream == 'mjpeg')
-                Image.network(widget.camara.urlStream, fit: BoxFit.cover,
+              else if (widget.camara.rtspUrl.contains('/video'))
+                Image.network(widget.camara.rtspUrl, fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => const Icon(Icons.videocam_off, color: kPeligro))
               else if (_ctrl != null)
                 VideoPlayer(_ctrl!),
@@ -138,7 +138,7 @@ class _CeldaCamaraState extends State<_CeldaCamara> {
                     gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
                       colors: [Color(0xBF000000), Colors.transparent]),
                   ),
-                  child: Text(widget.camara.nombre,
+                  child: Text(widget.camara.nombreUbicacion,
                     style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
               ),

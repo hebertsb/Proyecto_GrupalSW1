@@ -17,12 +17,12 @@
   }
 
   <!-- Stream real: MJPEG vía <img> / HLS vía <video> / archivo <video> -->
-  @if (camara.tipo_stream === 'mjpeg') {
+  @if (esMjpeg()) {
     <img class="celda-camara__stream"
          [src]="obtenerUrl()"
          (load)="alCargar()"
          (error)="alError()"
-         alt="Stream {{ camara.nombre }}" />
+         alt="Stream {{ camara.nombre_ubicacion }}" />
   } @else {
     <video class="celda-camara__stream"
            [src]="obtenerUrl()"
@@ -34,7 +34,7 @@
 
   <!-- HUD inferior -->
   <div class="celda-camara__hud">
-    <span class="celda-camara__nombre">{{ camara.nombre }}</span>
+    <span class="celda-camara__nombre">{{ camara.nombre_ubicacion }}</span>
     <span class="celda-camara__hora">{{ horaActual() | date:'HH:mm:ss' }}</span>
   </div>
 

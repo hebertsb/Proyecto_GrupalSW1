@@ -32,7 +32,7 @@ export class PanelPrincipalComponent implements OnInit {
   ngOnInit() {
     this.camarasSrv.listar().subscribe({
       next: lista => {
-        this.camaras.set(lista.filter(c => c.activa));
+        this.camaras.set(lista.filter(c => c.is_active));
         this.cargando.set(false);
       },
       error: () => this.cargando.set(false),

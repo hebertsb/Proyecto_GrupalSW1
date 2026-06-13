@@ -11,7 +11,7 @@ export class CamarasServicio {
 
   listar()             { return this.http.get<Camara[]>(this.base + '/'); }
   obtener(id: number)  { return this.http.get<Camara>(`${this.base}/${id}/`); }
-  crear(datos: Partial<Camara>) { return this.http.post<Camara>(this.base + '/', datos); }
+  crear(datos: Partial<Camara>)                    { return this.http.post<Camara>(this.base + '/', datos); }
   actualizar(id: number, datos: Partial<Camara>) { return this.http.patch<Camara>(`${this.base}/${id}/`, datos); }
   eliminar(id: number) { return this.http.delete<void>(`${this.base}/${id}/`); }
 }

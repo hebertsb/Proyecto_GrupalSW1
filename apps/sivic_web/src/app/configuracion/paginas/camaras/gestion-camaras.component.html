@@ -18,15 +18,13 @@
         @for (cam of camaras(); track cam.camara_id) {
           <div class="tarjeta-camara">
             <div class="tarjeta-camara__cabeza">
-              <span class="material-icons">{{ cam.activa ? 'videocam' : 'videocam_off' }}</span>
-              <span class="tarjeta-camara__nombre">{{ cam.nombre }}</span>
-              <span class="tarjeta-camara__tipo">{{ cam.tipo_stream }}</span>
+              <span class="material-icons">{{ cam.is_active ? 'videocam' : 'videocam_off' }}</span>
+              <span class="tarjeta-camara__nombre">{{ cam.nombre_ubicacion }}</span>
             </div>
-            <p class="tarjeta-camara__url texto-2">{{ cam.url_stream }}</p>
-            <p class="tarjeta-camara__ubicacion texto-2">{{ cam.ubicacion }}</p>
+            <p class="tarjeta-camara__url texto-2">{{ cam.rtsp_url }}</p>
             <div class="tarjeta-camara__acciones">
               <button class="boton-icono" (click)="alternarActiva(cam)"
-                      [title]="cam.activa ? 'Desactivar' : 'Activar'">
+                      [title]="cam.is_active ? 'Desactivar' : 'Activar'">
                 <span class="material-icons">{{ cam.activa ? 'pause' : 'play_arrow' }}</span>
               </button>
               <button class="boton-icono texto-peligro" (click)="eliminar(cam.camara_id)" title="Eliminar">
@@ -46,25 +44,13 @@
         <h2 class="modal__titulo">Nueva cámara</h2>
 
         <div class="campo">
-          <label class="campo__etiqueta">Nombre</label>
-          <input class="campo__entrada" [(ngModel)]="nueva.nombre" placeholder="Entrada principal" />
+          <label class="campo__etiqueta">Nombre / Ubicación</label>
+          <input class="campo__entrada" [(ngModel)]="nueva.nombre_ubicacion" placeholder="Entrada principal — Puerta norte" />
         </div>
         <div class="campo">
-          <label class="campo__etiqueta">Ubicación</label>
-          <input class="campo__entrada" [(ngModel)]="nueva.ubicacion" placeholder="Puerta norte" />
-        </div>
-        <div class="campo">
-          <label class="campo__etiqueta">Tipo de stream</label>
-          <select class="campo__entrada" [(ngModel)]="nueva.tipo_stream">
-            <option value="mjpeg">MJPEG (IP Webcam)</option>
-            <option value="hls">HLS (mediamtx)</option>
-            <option value="archivo">Archivo de video</option>
-          </select>
-        </div>
-        <div class="campo">
-          <label class="campo__etiqueta">URL del stream</label>
-          <input class="campo__entrada" [(ngModel)]="nueva.url_stream"
-                 placeholder="http://192.168.1.x:8080/video" />
+          <label class="campo__etiqueta">URL RTSP / Stream</label>
+          <input class="campo__entrada" [(ngModel)]="nueva.rtsp_url"
+                 placeholder="http://192.168.1.x:8080/video  ó  rtsp://..." />
         </div>
 
         <div class="modal__acciones">
