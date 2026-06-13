@@ -15,5 +15,13 @@ class Usuario(models.Model):
         db_table = "usuarios"
         managed  = False
 
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
     def __str__(self):
         return f"{self.nombre} ({self.rol})"

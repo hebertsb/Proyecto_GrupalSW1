@@ -10,9 +10,13 @@ class AutenticacionJWT(BaseAuthentication):
 
     def authenticate(self, request):
         encabezado = request.headers.get("Authorization", "")
-        if not encabezado.startswith("Bearer "):
-            return None
-        token = encabezado.split(" ")[1]
+        if encabezado.startswith("Bearer "):
+            token = encabezado.split(" ")[1]
+        else:
+            # Query-param fallback para <img src="...?token="> y stream MJPEG
+            token = request.GET.get("token", "")
+            if not token:
+                return None
         try:
             payload = jwt.decode(
                 token,

@@ -33,7 +33,7 @@ export class LoginComponent {
     this.error.set('');
 
     this.auth.iniciarSesion(this.formulario.value).subscribe({
-      next:  () => this.router.navigate(['/']),
+      next:  () => this.router.navigate([this.auth.esAdmin() ? '/dashboard' : '/guardia']),
       error: (e) => {
         this.error.set(e.error?.detail ?? 'Credenciales incorrectas');
         this.cargando.set(false);

@@ -17,10 +17,14 @@
     "module": "ES2022",
     "useDefineForClassFields": false,
     "lib": ["ES2022", "dom"],
+    "baseUrl": ".",
+    "typeRoots": ["node_modules/@types"],
     "paths": {
       "@nucleo/*":     ["src/app/nucleo/*"],
       "@compartido/*": ["src/app/compartido/*"],
-      "@env/*":        ["src/environments/*"]
+      "@env/*":        ["src/environments/*"],
+      "rxjs":          ["node_modules/rxjs"],
+      "rxjs/*":        ["node_modules/rxjs/*"]
     }
   },
   "angularCompilerOptions": {

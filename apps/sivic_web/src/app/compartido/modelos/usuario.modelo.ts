@@ -10,7 +10,7 @@ export interface Usuario {
 
 export interface SesionUsuario {
   usuario: Usuario;
-  token: string;
+  access: string;
 }
 
 export interface CredencialesLogin {

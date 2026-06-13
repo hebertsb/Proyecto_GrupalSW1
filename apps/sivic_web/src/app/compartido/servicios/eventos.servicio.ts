@@ -15,8 +15,8 @@ export class EventosServicio {
 
   obtener(id: number) { return this.http.get<Evento>(`${this.base}/${id}/`); }
 
-  actualizarEstado(id: number, estado: EstadoEvento) {
-    return this.http.patch<Evento>(`${this.base}/${id}/estado/`, { estado });
+  actualizarEstado(id: number, estado: EstadoEvento, resolucion?: string) {
+    return this.http.patch<Evento>(`${this.base}/${id}/estado/`, { estado, resolucion });
   }
 
   estadoEtiqueta(estado: EstadoEvento): string {

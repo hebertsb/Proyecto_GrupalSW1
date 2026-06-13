@@ -108,6 +108,10 @@ TIME_ZONE = "America/La_Paz"
 USE_I18N = True
 USE_TZ = True
 
+# Ruta al modelo YOLO entrenado (.pt). Dejar vacío si no se usa IA local.
+# Ejemplo: YOLO_MODEL_PATH=apps/sivic_backend/modelos/sivic.pt
+YOLO_MODEL_PATH = env("YOLO_MODEL_PATH", default="")
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

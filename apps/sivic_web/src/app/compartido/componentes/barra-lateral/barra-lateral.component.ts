@@ -20,13 +20,23 @@ export class BarraLateralComponent {
   private auth = inject(AutenticacionServicio);
 
   readonly enlaces: EnlaceNav[] = [
-    { etiqueta: 'Cámaras',     icono: 'videocam',          ruta: '/camaras' },
-    { etiqueta: 'Eventos',     icono: 'notification_important', ruta: '/eventos' },
-    { etiqueta: 'Cámaras',    icono: 'settings_input_component', ruta: '/configuracion/camaras', soloAdmin: true },
-    { etiqueta: 'Reglas IA',   icono: 'rule',               ruta: '/configuracion/reglas',   soloAdmin: true },
-    { etiqueta: 'Usuarios',    icono: 'manage_accounts',    ruta: '/configuracion/usuarios',  soloAdmin: true },
-    { etiqueta: 'Auditoría',   icono: 'history',            ruta: '/auditoria',              soloAdmin: true },
+    { etiqueta: 'Dashboard',   icono: 'dashboard',               ruta: '/dashboard',               soloAdmin: true },
+    { etiqueta: 'Seguridad',   icono: 'shield',                  ruta: '/guardia',                 soloAdmin: false },
+    { etiqueta: 'Cámaras',     icono: 'videocam',                ruta: '/camaras' },
+    { etiqueta: 'Alertas',     icono: 'notification_important',  ruta: '/eventos' },
+    { etiqueta: 'Reglas IA',   icono: 'rule',                    ruta: '/reglas' },
+    { etiqueta: 'Config. Cámaras', icono: 'settings_input_component', ruta: '/configuracion/camaras', soloAdmin: true },
+    { etiqueta: 'Usuarios',    icono: 'manage_accounts',         ruta: '/configuracion/usuarios',  soloAdmin: true },
+    { etiqueta: 'Auditoría',   icono: 'history',                 ruta: '/auditoria',              soloAdmin: true },
   ];
+
+  readonly enlacesFiltradosPorRol = computed(() =>
+    this.enlaces.filter(e => {
+      if (e.soloAdmin === true)  return this.auth.esAdmin();
+      if (e.soloAdmin === false) return !this.auth.esAdmin();
+      return true;
+    })
+  );
 
   readonly enlacesFiltrados = computed(() =>
     this.enlaces.filter(e => !e.soloAdmin || this.auth.esAdmin())

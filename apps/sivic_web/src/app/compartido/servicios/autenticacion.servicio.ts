@@ -17,7 +17,7 @@ export class AutenticacionServicio {
   iniciarSesion(credenciales: CredencialesLogin) {
     return this.http.post<SesionUsuario>(`${entorno.apiUrl}/auth/login/`, credenciales).pipe(
       tap(sesion => {
-        localStorage.setItem(CLAVE_TOKEN, sesion.token);
+        localStorage.setItem(CLAVE_TOKEN, sesion.access);
         localStorage.setItem(CLAVE_USUARIO, JSON.stringify(sesion.usuario));
         this.usuarioActual.set(sesion.usuario);
       })

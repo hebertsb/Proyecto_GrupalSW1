@@ -5,7 +5,7 @@
   </div>
 
   <ul class="nav-lista">
-    @for (enlace of enlacesFiltrados(); track enlace.ruta) {
+    @for (enlace of enlacesFiltradosPorRol(); track enlace.ruta) {
       <li>
         <a class="nav-item"
            [routerLink]="enlace.ruta"

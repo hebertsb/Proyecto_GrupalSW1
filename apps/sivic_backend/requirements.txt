@@ -11,3 +11,6 @@ firebase-admin>=7.0
 resend>=0.6.0
 pillow>=11.0
 drf-spectacular>=0.28
+opencv-python-headless>=4.9
+ultralytics>=8.2
+numpy>=1.26

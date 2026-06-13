@@ -27,7 +27,7 @@
     @if (camaraFoco()) {
       <div class="barra-herramientas__foco">
         <span class="material-icons">location_on</span>
-        {{ camaraFoco()!.nombre }} — {{ camaraFoco()!.ubicacion }}
+        {{ camaraFoco()!.nombre_ubicacion }}
         <button class="boton-icono" (click)="seleccionarCamara(camaraFoco()!)" title="Volver a cuadrícula">
           <span class="material-icons">close</span>
         </button>

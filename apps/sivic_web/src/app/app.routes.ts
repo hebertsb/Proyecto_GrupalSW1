@@ -13,8 +13,13 @@ export const rutas: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'camaras',
+        redirectTo: 'guardia',
         pathMatch: 'full',
+      },
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./dashboard/paginas/dashboard-admin/dashboard-admin.component').then(m => m.DashboardAdminComponent),
+        title: 'SIVIC — Dashboard',
       },
       {
         path: 'camaras',
@@ -30,6 +35,16 @@ export const rutas: Routes = [
         path: 'configuracion/camaras',
         loadComponent: () => import('./configuracion/paginas/camaras/gestion-camaras.component').then(m => m.GestionCamarasComponent),
         title: 'SIVIC — Gestión de Cámaras',
+      },
+      {
+        path: 'guardia',
+        loadComponent: () => import('./guardia/paginas/dashboard-guardia/dashboard-guardia.component').then(m => m.DashboardGuardiaComponent),
+        title: 'SIVIC — Centro de Seguridad',
+      },
+      {
+        path: 'reglas',
+        loadComponent: () => import('./configuracion/paginas/reglas/gestion-reglas.component').then(m => m.GestionReglasComponent),
+        title: 'SIVIC — Reglas IA',
       },
       {
         path: 'configuracion/reglas',
