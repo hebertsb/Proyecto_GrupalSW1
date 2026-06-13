@@ -37,6 +37,16 @@ enfoque, y puede correr en segundo plano.
    IPv4: http://192.168.1.X:8080
    ```
    Esa es la IP y puerto que vas a usar. **Anótala.**
+   Configura así en el panel (/configuracion/camaras, editar "camara celular 1" o cualquiera de las otras 3):
+
+Protocolo: http
+IP / Host: 192.168.1.8
+Puerto: 8080
+Usuario / Contraseña: vacío (dice "no establecido")
+Ruta: /video
+URL final: http://192.168.1.8:8080/video
+
+Luego Probar conexión → Guardar.
 
 > Mientras pruebas, deja la app abierta con la vista de cámara activa.
 > Si la cierras o bloqueas el celular (sin el permiso de segundo plano),
@@ -45,11 +55,13 @@ enfoque, y puede correr en segundo plano.
 ### Alternativa: apps con RTSP (ej. "Visor de cámara IP WiFi")
 
 Algunas apps muestran un dato tipo:
+
 ```
 rtsp://192.168.1.X:8556
 Usuario: admin
 Contraseña: xxxxxx
 ```
+
 Esto también funciona (ver sección 3, modo RTSP), pero suelen ser menos
 estables y no permiten ajustar zoom/resolución.
 
@@ -65,27 +77,27 @@ estables y no permiten ajustar zoom/resolución.
 
 ### Si usaste IP Webcam (HTTP):
 
-| Campo | Valor |
-|---|---|
-| Protocolo | `http` |
-| IP / Host | `192.168.1.X` (la que mostró la app) |
-| Puerto | `8080` |
-| Usuario | (vacío) |
-| Contraseña | (vacío) |
-| Ruta del stream | `/video` |
+| Campo           | Valor                                |
+| --------------- | ------------------------------------ |
+| Protocolo       | `http`                               |
+| IP / Host       | `192.168.1.X` (la que mostró la app) |
+| Puerto          | `8080`                               |
+| Usuario         | (vacío)                              |
+| Contraseña      | (vacío)                              |
+| Ruta del stream | `/video`                             |
 
 URL final esperada: `http://192.168.1.X:8080/video`
 
 ### Si usaste una app con RTSP:
 
-| Campo | Valor |
-|---|---|
-| Protocolo | `rtsp` |
-| IP / Host | la IP que indica la app |
-| Puerto | el puerto que indica la app (ej. `8556`) |
-| Usuario | usuario indicado (ej. `admin`) |
-| Contraseña | contraseña indicada |
-| Ruta del stream | `/` (probar primero con esto) |
+| Campo           | Valor                                    |
+| --------------- | ---------------------------------------- |
+| Protocolo       | `rtsp`                                   |
+| IP / Host       | la IP que indica la app                  |
+| Puerto          | el puerto que indica la app (ej. `8556`) |
+| Usuario         | usuario indicado (ej. `admin`)           |
+| Contraseña      | contraseña indicada                      |
+| Ruta del stream | `/` (probar primero con esto)            |
 
 URL final esperada: `rtsp://usuario:contraseña@192.168.1.X:8556/`
 
