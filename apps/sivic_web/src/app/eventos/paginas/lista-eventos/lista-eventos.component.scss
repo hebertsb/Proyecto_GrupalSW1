@@ -1,0 +1,75 @@
+.barra-filtros {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  flex-shrink: 0;
+}
+
+.filtro-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--texto-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+
+  &:hover           { background: var(--superficie-2); color: var(--texto); }
+  &--activo         { background: var(--primario); border-color: var(--primario); color: #fff; }
+}
+
+.tabla-contenedor {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.estado-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 12px;
+  color: var(--texto-2);
+  .material-icons { font-size: 48px; opacity: .4; }
+}
+
+.tabla-eventos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--borde);
+  }
+
+  th { color: var(--texto-2); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  tr:hover td { background: var(--superficie-2); }
+}
+
+.estado-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+}
+
+.estado--pendiente { border-color: var(--advertencia); color: var(--advertencia); }
+.estado--revision  { border-color: var(--primario);    color: var(--primario); }
+.estado--resuelto  { border-color: var(--exito);       color: var(--exito); }
+.estado--falso     { border-color: var(--texto-2);     color: var(--texto-2); }
+
+.confianza { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.acciones { display: flex; gap: 4px; }

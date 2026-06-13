@@ -1,0 +1,103 @@
+import jwt
+import os
+import datetime
+from django.contrib.auth.hashers import check_password, make_password
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import Usuario
+from .serializers import UsuarioSerializer, RegistroSerializer
+from .permisos import EsAdmin
+
+
+def _generar_token(usuario):
+    payload = {
+        "usuario_id": usuario.usuario_id,
+        "email":      usuario.email,
+        "rol":        usuario.rol,
+        "exp":        datetime.datetime.utcnow() + datetime.timedelta(days=7),
+    }
+    return jwt.encode(payload, os.environ.get("SECRET_KEY", ""), algorithm="HS256")
+
+
+@extend_schema(
+    tags=["Autenticación"],
+    summary="Iniciar sesión",
+    description="Devuelve un JWT válido por 7 días. Incluir en cabecera: `Authorization: Bearer <token>`",
+    request={"application/json": {"example": {"email": "admin@sivic.com", "password": "secret123"}}},
+    responses={200: UsuarioSerializer},
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login(request):
+    email    = request.data.get("email", "").strip()
+    password = request.data.get("password", "")
+
+    try:
+        usuario = Usuario.objects.get(email=email)
+    except Usuario.DoesNotExist:
+        return Response({"error": "Credenciales inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not check_password(password, usuario.password_hash):
+        return Response({"error": "Credenciales inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    token = _generar_token(usuario)
+    return Response({"access": token, "usuario": UsuarioSerializer(usuario).data})
+
+
+@extend_schema(
+    tags=["Autenticación"],
+    summary="Registrar usuario",
+    description="Crea un nuevo usuario (admin o guardia). Solo usar en setup inicial o por admin.",
+    request=RegistroSerializer,
+    responses={201: UsuarioSerializer},
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def registro(request):
+    ser = RegistroSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    d = ser.validated_data
+
+    if Usuario.objects.filter(email=d["email"]).exists():
+        return Response({"error": "Email ya registrado"}, status=status.HTTP_400_BAD_REQUEST)
+
+    usuario = Usuario.objects.create(
+        nombre        = d["nombre"],
+        email         = d["email"],
+        password_hash = make_password(d["password"]),
+        rol           = d["rol"],
+    )
+    token = _generar_token(usuario)
+    return Response({"access": token, "usuario": UsuarioSerializer(usuario).data}, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["Autenticación"],
+    summary="Perfil del usuario autenticado",
+    description="Retorna los datos del usuario cuyo token JWT está en la cabecera.",
+    responses={200: UsuarioSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def yo(request):
+    return Response(UsuarioSerializer(request.user).data)
+
+
+@extend_schema(
+    tags=["Autenticación"],
+    summary="Listar usuarios",
+    description="Lista todos los usuarios. Filtra por rol con `?rol=guardia` o `?rol=admin`. Solo admin.",
+    responses={200: UsuarioSerializer(many=True)},
+)
+@api_view(["GET"])
+@permission_classes([EsAdmin])
+def listar_usuarios(request):
+    rol = request.query_params.get("rol")
+    qs  = Usuario.objects.all()
+    if rol:
+        qs = qs.filter(rol=rol)
+    return Response(UsuarioSerializer(qs, many=True).data)

@@ -1,0 +1,44 @@
+<div class="pantalla-completa">
+  <app-cabecera>
+    <span class="material-icons" style="vertical-align:middle;margin-right:6px">rule</span>
+    Reglas de Infracción IA
+  </app-cabecera>
+
+  <div class="pagina-contenido">
+    @if (cargando()) {
+      <p class="texto-2">Cargando reglas…</p>
+    } @else {
+      <table class="tabla-simple">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Umbral confianza</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (regla of reglas(); track regla.regla_id) {
+            <tr>
+              <td>{{ regla.nombre }}</td>
+              <td class="texto-2">{{ regla.descripcion ?? '—' }}</td>
+              <td>{{ (regla.umbral_confianza * 100).toFixed(0) }}%</td>
+              <td>
+                <span [class]="regla.activa ? 'texto-exito' : 'texto-2'">
+                  {{ regla.activa ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td>
+                <button class="boton-icono" (click)="alternarActiva(regla)"
+                        [title]="regla.activa ? 'Desactivar' : 'Activar'">
+                  <span class="material-icons">{{ regla.activa ? 'toggle_on' : 'toggle_off' }}</span>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

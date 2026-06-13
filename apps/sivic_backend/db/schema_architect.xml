@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1"
+    xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML"
+    xmlns:xmi="http://www.omg.org/spec/XMI/20131001">
+
+  <uml:Model xmi:id="MDL_01" xmi:type="uml:Model" name="SIVIC">
+    <packagedElement xmi:type="uml:Package" xmi:id="PKG_01" name="Database">
+
+      <!-- ===== CLASES ===== -->
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_USR" name="usuarios">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_USR_01" name="usuario_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_USR_02" name="nombre : VARCHAR(100)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_USR_03" name="email : VARCHAR(100)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_USR_04" name="password_hash : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_USR_05" name="rol : VARCHAR(20)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_USR_06" name="created_at : TIMESTAMP" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_PLAN" name="planes">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_PLAN_01" name="plan_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_PLAN_02" name="nombre : VARCHAR(20)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_PLAN_03" name="precio_mensual : DECIMAL" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_CONDO" name="condominio">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CO_01" name="condominio_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CO_02" name="nombre : VARCHAR(100)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CO_03" name="ubicacion : TEXT" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_SUSC" name="suscripciones">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_SU_01" name="suscripcion_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_SU_02" name="condominio_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_SU_03" name="plan_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_SU_04" name="fecha_inicio : DATE" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_SU_05" name="is_activo : BOOLEAN" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_PLANF" name="plan_funcionalidades">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_PF_01" name="plan_id : INT [PK+FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_PF_02" name="funcionalidad : VARCHAR(50) [PK]" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_CAM" name="camaras">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CA_01" name="camara_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CA_02" name="condominio_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CA_03" name="nombre_ubicacion : VARCHAR(100)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CA_04" name="rtsp_url : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_CA_05" name="is_active : BOOLEAN" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_ROI" name="zonas_roi">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_ROI_01" name="roi_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_ROI_02" name="camara_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_ROI_03" name="poligono_coordenadas : JSONB" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_ROI_04" name="tipo_zona : VARCHAR(50)" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_REGLA" name="reglas_infraccion">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_RE_01" name="regla_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_RE_02" name="nombre_regla : VARCHAR(50)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_RE_03" name="descripcion : TEXT" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_EVT" name="eventos">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_01" name="evento_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_02" name="camara_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_03" name="regla_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_04" name="timestamp_deteccion : TIMESTAMP" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_05" name="confianza_ia : FLOAT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_06" name="estado : VARCHAR(20)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_07" name="imagen_evidencia_path : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_08" name="resolucion : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_09" name="atendido_por : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_EV_10" name="tiempo_respuesta : INTERVAL" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_LOG" name="logs_auditoria">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_LG_01" name="log_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_LG_02" name="usuario_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_LG_03" name="accion : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_LG_04" name="tabla_afectada : VARCHAR(50)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_LG_05" name="timestamp_accion : TIMESTAMP" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_DS" name="datasets">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_DS_01" name="dataset_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_DS_02" name="nombre : VARCHAR(50)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_DS_03" name="version_modelo : VARCHAR(20)" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_DSE" name="dataset_eventos">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_DSE_01" name="dataset_id : INT [PK+FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_DSE_02" name="evento_id : INT [PK+FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_DSE_03" name="etiqueta_correcta : VARCHAR(50)" visibility="public"/>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Class" xmi:id="CLS_NOTIF" name="notificaciones">
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_01" name="notificacion_id : SERIAL [PK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_02" name="evento_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_03" name="usuario_id : INT [FK]" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_04" name="titulo : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_05" name="cuerpo : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_06" name="token_fcm : TEXT" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_07" name="estado : VARCHAR(20)" visibility="public"/>
+        <ownedAttribute xmi:type="uml:Property" xmi:id="AT_NF_08" name="created_at : TIMESTAMP" visibility="public"/>
+      </packagedElement>
+
+      <!-- ===== ASOCIACIONES ===== -->
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_01" name="planes_to_suscripciones">
+        <memberEnd xmi:idref="ASS_01_A"/>
+        <memberEnd xmi:idref="ASS_01_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_01_A" type="CLS_PLAN" association="ASS_01">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_01_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_01_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_01_B" type="CLS_SUSC" association="ASS_01">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_01_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_01_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_02" name="condominio_to_suscripciones">
+        <memberEnd xmi:idref="ASS_02_A"/>
+        <memberEnd xmi:idref="ASS_02_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_02_A" type="CLS_CONDO" association="ASS_02">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_02_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_02_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_02_B" type="CLS_SUSC" association="ASS_02">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_02_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_02_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_03" name="planes_to_funcionalidades">
+        <memberEnd xmi:idref="ASS_03_A"/>
+        <memberEnd xmi:idref="ASS_03_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_03_A" type="CLS_PLAN" association="ASS_03">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_03_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_03_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_03_B" type="CLS_PLANF" association="ASS_03">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_03_B" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_03_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_04" name="condominio_to_camaras">
+        <memberEnd xmi:idref="ASS_04_A"/>
+        <memberEnd xmi:idref="ASS_04_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_04_A" type="CLS_CONDO" association="ASS_04">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_04_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_04_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_04_B" type="CLS_CAM" association="ASS_04">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_04_B" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_04_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_05" name="camaras_to_zonas_roi">
+        <memberEnd xmi:idref="ASS_05_A"/>
+        <memberEnd xmi:idref="ASS_05_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_05_A" type="CLS_CAM" association="ASS_05">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_05_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_05_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_05_B" type="CLS_ROI" association="ASS_05">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_05_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_05_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_06" name="camaras_to_eventos">
+        <memberEnd xmi:idref="ASS_06_A"/>
+        <memberEnd xmi:idref="ASS_06_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_06_A" type="CLS_CAM" association="ASS_06">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_06_A" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_06_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_06_B" type="CLS_EVT" association="ASS_06">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_06_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_06_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_07" name="reglas_to_eventos">
+        <memberEnd xmi:idref="ASS_07_A"/>
+        <memberEnd xmi:idref="ASS_07_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_07_A" type="CLS_REGLA" association="ASS_07">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_07_A" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_07_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_07_B" type="CLS_EVT" association="ASS_07">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_07_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_07_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_08" name="usuarios_atiende_eventos">
+        <memberEnd xmi:idref="ASS_08_A"/>
+        <memberEnd xmi:idref="ASS_08_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_08_A" type="CLS_USR" association="ASS_08">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_08_A" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_08_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_08_B" type="CLS_EVT" association="ASS_08">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_08_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_08_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_09" name="eventos_to_dataset_eventos">
+        <memberEnd xmi:idref="ASS_09_A"/>
+        <memberEnd xmi:idref="ASS_09_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_09_A" type="CLS_EVT" association="ASS_09">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_09_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_09_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_09_B" type="CLS_DSE" association="ASS_09">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_09_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_09_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_10" name="datasets_to_dataset_eventos">
+        <memberEnd xmi:idref="ASS_10_A"/>
+        <memberEnd xmi:idref="ASS_10_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_10_A" type="CLS_DS" association="ASS_10">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_10_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_10_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_10_B" type="CLS_DSE" association="ASS_10">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_10_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_10_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_12" name="eventos_to_notificaciones">
+        <memberEnd xmi:idref="ASS_12_A"/>
+        <memberEnd xmi:idref="ASS_12_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_12_A" type="CLS_EVT" association="ASS_12">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_12_A" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_12_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_12_B" type="CLS_NOTIF" association="ASS_12">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_12_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_12_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_13" name="usuarios_to_notificaciones">
+        <memberEnd xmi:idref="ASS_13_A"/>
+        <memberEnd xmi:idref="ASS_13_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_13_A" type="CLS_USR" association="ASS_13">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_13_A" value="1"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_13_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_13_B" type="CLS_NOTIF" association="ASS_13">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_13_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_13_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+      <packagedElement xmi:type="uml:Association" xmi:id="ASS_11" name="usuarios_to_logs">
+        <memberEnd xmi:idref="ASS_11_A"/>
+        <memberEnd xmi:idref="ASS_11_B"/>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_11_A" type="CLS_USR" association="ASS_11">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_11_A" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_11_A" value="1"/>
+        </ownedEnd>
+        <ownedEnd xmi:type="uml:Property" xmi:id="ASS_11_B" type="CLS_LOG" association="ASS_11">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="LV_11_B" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="UV_11_B" value="-1"/>
+        </ownedEnd>
+      </packagedElement>
+
+    </packagedElement>
+  </uml:Model>
+
+  <!-- ===== EXTENSIÓN EA: diagrama visual con posiciones ===== -->
+  <xmi:Extension extender="Enterprise Architect" extenderID="6.5">
+    <diagrams>
+      <diagram xmi:id="DIA_01">
+        <model package="PKG_01" owner="PKG_01" type="ClassDiagram"/>
+        <properties name="ERD SIVIC" type="ClassDiagram" stereotype=""/>
+        <elements>
+          <element subject="CLS_USR"   seqno="1"  geometry="Left=10;Top=10;Right=220;Bottom=150;"   style="BorderColor=0;"/>
+          <element subject="CLS_PLAN"  seqno="2"  geometry="Left=240;Top=10;Right=430;Bottom=100;"  style="BorderColor=0;"/>
+          <element subject="CLS_CONDO" seqno="3"  geometry="Left=450;Top=10;Right=640;Bottom=100;"  style="BorderColor=0;"/>
+          <element subject="CLS_SUSC"  seqno="4"  geometry="Left=10;Top=180;Right=230;Bottom=310;"  style="BorderColor=0;"/>
+          <element subject="CLS_PLANF" seqno="5"  geometry="Left=250;Top=180;Right=450;Bottom=270;" style="BorderColor=0;"/>
+          <element subject="CLS_CAM"   seqno="6"  geometry="Left=470;Top=180;Right=680;Bottom=300;" style="BorderColor=0;"/>
+          <element subject="CLS_ROI"   seqno="7"  geometry="Left=700;Top=180;Right=900;Bottom=290;" style="BorderColor=0;"/>
+          <element subject="CLS_REGLA" seqno="8"  geometry="Left=10;Top=340;Right=220;Bottom=440;"  style="BorderColor=0;"/>
+          <element subject="CLS_EVT"   seqno="9"  geometry="Left=240;Top=340;Right=480;Bottom=510;" style="BorderColor=0;"/>
+          <element subject="CLS_LOG"   seqno="10" geometry="Left=500;Top=340;Right=700;Bottom=460;" style="BorderColor=0;"/>
+          <element subject="CLS_DS"    seqno="11" geometry="Left=10;Top=540;Right=220;Bottom=640;"  style="BorderColor=0;"/>
+          <element subject="CLS_DSE"   seqno="12" geometry="Left=240;Top=540;Right=450;Bottom=640;" style="BorderColor=0;"/>
+          <element subject="CLS_NOTIF" seqno="13" geometry="Left=470;Top=540;Right=720;Bottom=680;" style="BorderColor=0;"/>
+        </elements>
+        <connectors>
+          <connector subject="ASS_01"/>
+          <connector subject="ASS_02"/>
+          <connector subject="ASS_03"/>
+          <connector subject="ASS_04"/>
+          <connector subject="ASS_05"/>
+          <connector subject="ASS_06"/>
+          <connector subject="ASS_07"/>
+          <connector subject="ASS_08"/>
+          <connector subject="ASS_09"/>
+          <connector subject="ASS_10"/>
+          <connector subject="ASS_11"/>
+          <connector subject="ASS_12"/>
+          <connector subject="ASS_13"/>
+        </connectors>
+      </diagram>
+    </diagrams>
+  </xmi:Extension>
+
+</xmi:XMI>

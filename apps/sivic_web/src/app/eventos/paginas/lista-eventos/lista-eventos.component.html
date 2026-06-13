@@ -1,0 +1,81 @@
+<div class="pantalla-completa">
+  <app-cabecera>
+    <span class="material-icons" style="vertical-align:middle;margin-right:6px">notification_important</span>
+    Eventos Detectados
+  </app-cabecera>
+
+  <!-- Filtros -->
+  <div class="barra-filtros">
+    @for (est of estados; track est.valor) {
+      <button class="filtro-btn"
+              [class.filtro-btn--activo]="filtro() === est.valor"
+              (click)="cambiarFiltro(est.valor)">
+        {{ est.etiqueta }}
+      </button>
+    }
+  </div>
+
+  <!-- Tabla -->
+  <div class="tabla-contenedor">
+    @if (cargando()) {
+      <div class="estado-vacio">Cargando eventos…</div>
+    } @else if (eventos().length === 0) {
+      <div class="estado-vacio">
+        <span class="material-icons">notifications_none</span>
+        <p>Sin eventos registrados</p>
+      </div>
+    } @else {
+      <table class="tabla-eventos">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cámara</th>
+            <th>Regla</th>
+            <th>Confianza</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ev of eventos(); track ev.evento_id) {
+            <tr>
+              <td class="texto-2">{{ ev.evento_id }}</td>
+              <td>{{ ev.camara_nombre ?? 'Cám. ' + ev.camara_id }}</td>
+              <td>{{ ev.regla_nombre ?? 'Regla ' + ev.regla_id }}</td>
+              <td>
+                <span class="confianza" [class.texto-peligro]="ev.confianza >= 0.8">
+                  {{ (ev.confianza * 100).toFixed(0) }}%
+                </span>
+              </td>
+              <td>
+                <span class="estado-chip" [ngClass]="claseEstado(ev.estado)">
+                  {{ ev.estado.replace('_', ' ') }}
+                </span>
+              </td>
+              <td class="texto-2">{{ ev.created_at | date:'dd/MM/yy HH:mm' }}</td>
+              <td>
+                @if (ev.estado === 'pendiente') {
+                  <div class="acciones">
+                    <button class="boton-icono" title="Marcar en revisión"
+                            (click)="actualizarEstado(ev, 'en_revision')">
+                      <span class="material-icons">search</span>
+                    </button>
+                    <button class="boton-icono" title="Marcar resuelto"
+                            (click)="actualizarEstado(ev, 'resuelto')">
+                      <span class="material-icons">check_circle</span>
+                    </button>
+                    <button class="boton-icono" title="Falso positivo"
+                            (click)="actualizarEstado(ev, 'falso_positivo')">
+                      <span class="material-icons">cancel</span>
+                    </button>
+                  </div>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

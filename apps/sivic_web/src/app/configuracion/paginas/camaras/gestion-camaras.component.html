@@ -1,0 +1,79 @@
+<div class="pantalla-completa">
+  <app-cabecera>
+    <span class="material-icons" style="vertical-align:middle;margin-right:6px">settings_input_component</span>
+    Gestión de Cámaras
+  </app-cabecera>
+
+  <div class="pagina-contenido">
+    <div class="pagina-toolbar">
+      <button class="boton-primario" (click)="modalOpen.set(true)">
+        <span class="material-icons">add</span> Nueva cámara
+      </button>
+    </div>
+
+    @if (cargando()) {
+      <p class="texto-2">Cargando…</p>
+    } @else {
+      <div class="tarjetas-grid">
+        @for (cam of camaras(); track cam.camara_id) {
+          <div class="tarjeta-camara">
+            <div class="tarjeta-camara__cabeza">
+              <span class="material-icons">{{ cam.activa ? 'videocam' : 'videocam_off' }}</span>
+              <span class="tarjeta-camara__nombre">{{ cam.nombre }}</span>
+              <span class="tarjeta-camara__tipo">{{ cam.tipo_stream }}</span>
+            </div>
+            <p class="tarjeta-camara__url texto-2">{{ cam.url_stream }}</p>
+            <p class="tarjeta-camara__ubicacion texto-2">{{ cam.ubicacion }}</p>
+            <div class="tarjeta-camara__acciones">
+              <button class="boton-icono" (click)="alternarActiva(cam)"
+                      [title]="cam.activa ? 'Desactivar' : 'Activar'">
+                <span class="material-icons">{{ cam.activa ? 'pause' : 'play_arrow' }}</span>
+              </button>
+              <button class="boton-icono texto-peligro" (click)="eliminar(cam.camara_id)" title="Eliminar">
+                <span class="material-icons">delete</span>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Modal nueva cámara -->
+  @if (modalOpen()) {
+    <div class="modal-fondo" (click)="modalOpen.set(false)">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2 class="modal__titulo">Nueva cámara</h2>
+
+        <div class="campo">
+          <label class="campo__etiqueta">Nombre</label>
+          <input class="campo__entrada" [(ngModel)]="nueva.nombre" placeholder="Entrada principal" />
+        </div>
+        <div class="campo">
+          <label class="campo__etiqueta">Ubicación</label>
+          <input class="campo__entrada" [(ngModel)]="nueva.ubicacion" placeholder="Puerta norte" />
+        </div>
+        <div class="campo">
+          <label class="campo__etiqueta">Tipo de stream</label>
+          <select class="campo__entrada" [(ngModel)]="nueva.tipo_stream">
+            <option value="mjpeg">MJPEG (IP Webcam)</option>
+            <option value="hls">HLS (mediamtx)</option>
+            <option value="archivo">Archivo de video</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label class="campo__etiqueta">URL del stream</label>
+          <input class="campo__entrada" [(ngModel)]="nueva.url_stream"
+                 placeholder="http://192.168.1.x:8080/video" />
+        </div>
+
+        <div class="modal__acciones">
+          <button class="boton-primario" (click)="guardar()">Guardar</button>
+          <button class="boton-icono" (click)="modalOpen.set(false)">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

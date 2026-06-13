@@ -1,0 +1,48 @@
+<div class="celda-camara" [class.celda-camara--seleccionada]="seleccionada">
+
+  <!-- Overlay: cargando -->
+  @if (cargando()) {
+    <div class="celda-camara__estado">
+      <span class="material-icons celda-camara__icono-estado">videocam</span>
+      <span>Conectando…</span>
+    </div>
+  }
+
+  <!-- Overlay: error de stream -->
+  @if (errorStream()) {
+    <div class="celda-camara__estado celda-camara__estado--error">
+      <span class="material-icons celda-camara__icono-estado">videocam_off</span>
+      <span>Sin señal</span>
+    </div>
+  }
+
+  <!-- Stream real: MJPEG vía <img> / HLS vía <video> / archivo <video> -->
+  @if (camara.tipo_stream === 'mjpeg') {
+    <img class="celda-camara__stream"
+         [src]="obtenerUrl()"
+         (load)="alCargar()"
+         (error)="alError()"
+         alt="Stream {{ camara.nombre }}" />
+  } @else {
+    <video class="celda-camara__stream"
+           [src]="obtenerUrl()"
+           autoplay muted loop playsinline
+           (loadeddata)="alCargar()"
+           (error)="alError()">
+    </video>
+  }
+
+  <!-- HUD inferior -->
+  <div class="celda-camara__hud">
+    <span class="celda-camara__nombre">{{ camara.nombre }}</span>
+    <span class="celda-camara__hora">{{ horaActual() | date:'HH:mm:ss' }}</span>
+  </div>
+
+  <!-- Indicador LIVE -->
+  @if (!errorStream() && !cargando()) {
+    <div class="celda-camara__live">
+      <span class="live-dot"></span> LIVE
+    </div>
+  }
+
+</div>

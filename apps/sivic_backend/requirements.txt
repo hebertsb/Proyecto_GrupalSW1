@@ -1,0 +1,13 @@
+Django>=5.2
+djangorestframework>=3.16
+django-cors-headers>=4.8
+django-environ>=0.12
+dj-database-url>=3.0
+whitenoise>=6.10
+psycopg[binary]>=3.2
+PyJWT>=2.10
+gunicorn>=23.0
+firebase-admin>=7.0
+resend>=0.6.0
+pillow>=11.0
+drf-spectacular>=0.28
