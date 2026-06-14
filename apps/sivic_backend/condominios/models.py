@@ -2,9 +2,10 @@ from django.db import models
 
 
 class Plan(models.Model):
-    plan_id        = models.AutoField(primary_key=True)
-    nombre         = models.CharField(max_length=20, unique=True)
-    precio_mensual = models.DecimalField(max_digits=10, decimal_places=2)
+    plan_id          = models.AutoField(primary_key=True)
+    nombre           = models.CharField(max_length=20, unique=True)
+    precio_mensual   = models.DecimalField(max_digits=10, decimal_places=2)
+    stripe_precio_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     class Meta:
         db_table = "planes"
@@ -25,9 +26,10 @@ class PlanFuncionalidad(models.Model):
 
 
 class Condominio(models.Model):
-    condominio_id = models.AutoField(primary_key=True)
-    nombre        = models.CharField(max_length=100)
-    ubicacion     = models.TextField(null=True, blank=True)
+    condominio_id     = models.AutoField(primary_key=True)
+    nombre            = models.CharField(max_length=100)
+    ubicacion         = models.TextField(null=True, blank=True)
+    stripe_cliente_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     class Meta:
         db_table = "condominio"
@@ -38,11 +40,17 @@ class Condominio(models.Model):
 
 
 class Suscripcion(models.Model):
-    suscripcion_id = models.AutoField(primary_key=True)
-    condominio     = models.ForeignKey(Condominio, on_delete=models.CASCADE, db_column="condominio_id", related_name="suscripciones")
-    plan           = models.ForeignKey(Plan, on_delete=models.PROTECT, db_column="plan_id")
-    fecha_inicio   = models.DateField(auto_now_add=True)
-    is_activo      = models.BooleanField(default=True)
+    suscripcion_id        = models.AutoField(primary_key=True)
+    condominio            = models.ForeignKey(Condominio, on_delete=models.CASCADE, db_column="condominio_id", related_name="suscripciones")
+    plan                  = models.ForeignKey(Plan, on_delete=models.PROTECT, db_column="plan_id")
+    fecha_inicio          = models.DateField(auto_now_add=True)
+    fecha_fin             = models.DateField(null=True, blank=True)
+    is_activo             = models.BooleanField(default=False)
+    stripe_suscripcion_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    stripe_estado         = models.CharField(max_length=20, default="incomplete")
+    periodo_actual_inicio = models.DateField(null=True, blank=True)
+    periodo_actual_fin    = models.DateField(null=True, blank=True)
+    cancelar_al_vencer    = models.BooleanField(default=False)
 
     class Meta:
         db_table = "suscripciones"

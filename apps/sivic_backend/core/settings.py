@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "auditoria",
     "datasets",
     "notificaciones",
+    "pagos",
     "drf_spectacular",
 ]
 
@@ -107,6 +108,10 @@ LANGUAGE_CODE = "es-bo"
 TIME_ZONE = "America/La_Paz"
 USE_I18N = True
 USE_TZ = True
+
+# Stripe — claves disponibles en dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY      = env("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET  = env("STRIPE_WEBHOOK_SECRET", default="")
 
 # Ruta al modelo YOLO entrenado (.pt). Dejar vacío si no se usa IA local.
 # Ejemplo: YOLO_MODEL_PATH=apps/sivic_backend/modelos/sivic.pt

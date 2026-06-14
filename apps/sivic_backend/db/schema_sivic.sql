@@ -3,7 +3,7 @@
 -- Ejecutar en Supabase SQL Editor
 -- ============================================================
 
--- Limpiar schema público (elimina todas las tablas existentes)
+-- Limpiar schema público: tablas y funciones (permite re-ejecutar sin errores)
 DO $$
 DECLARE r RECORD;
 BEGIN
@@ -12,6 +12,11 @@ BEGIN
     END LOOP;
 END;
 $$;
+
+DROP FUNCTION IF EXISTS calcular_tiempo_respuesta() CASCADE;
+DROP FUNCTION IF EXISTS log_cambios_eventos() CASCADE;
+DROP FUNCTION IF EXISTS actualizar_estado_suscripcion() CASCADE;
+DROP FUNCTION IF EXISTS sincronizar_activo() CASCADE;
 
 -- ============================================================
 -- 1. USUARIOS Y ROLES
@@ -31,27 +36,79 @@ CREATE TABLE usuarios (
 CREATE TABLE planes (
     plan_id         SERIAL PRIMARY KEY,
     nombre          VARCHAR(20) UNIQUE NOT NULL,  -- Basico | Pro | Premium
-    precio_mensual  DECIMAL(10,2) NOT NULL
+    precio_mensual  DECIMAL(10,2) NOT NULL,
+    stripe_precio_id VARCHAR(255) UNIQUE          -- price_xxx de Stripe (se rellena tras crear los Prices en el dashboard)
 );
 
 CREATE TABLE condominio (
-    condominio_id SERIAL PRIMARY KEY,
-    nombre        VARCHAR(100) NOT NULL,
-    ubicacion     TEXT
+    condominio_id     SERIAL PRIMARY KEY,
+    nombre            VARCHAR(100) NOT NULL,
+    ubicacion         TEXT,
+    stripe_cliente_id  VARCHAR(255) UNIQUE  -- cus_xxx de Stripe (se crea al registrar el condominio)
 );
 
 CREATE TABLE suscripciones (
-    suscripcion_id SERIAL PRIMARY KEY,
-    condominio_id  INT NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
-    plan_id        INT NOT NULL REFERENCES planes(plan_id),
-    fecha_inicio   DATE DEFAULT CURRENT_DATE,
-    is_activo      BOOLEAN DEFAULT TRUE
+    suscripcion_id          SERIAL PRIMARY KEY,
+    condominio_id           INT NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
+    plan_id                 INT NOT NULL REFERENCES planes(plan_id),
+    fecha_inicio            DATE DEFAULT CURRENT_DATE,
+    fecha_fin               DATE,                         -- próxima fecha de renovación/vencimiento
+    is_activo               BOOLEAN DEFAULT FALSE,   -- FALSE hasta que Stripe confirme el pago
+    stripe_suscripcion_id   VARCHAR(255) UNIQUE,          -- sub_xxx de Stripe
+    stripe_estado           VARCHAR(20) DEFAULT 'incomplete'
+                                CHECK (stripe_estado IN (
+                                    'incomplete','incomplete_expired','trialing',
+                                    'active','past_due','canceled','unpaid','paused'
+                                )),
+    periodo_actual_inicio   DATE,                         -- inicio del período de Stripe actual
+    periodo_actual_fin      DATE,                         -- fin del período de Stripe actual
+    cancelar_al_vencer      BOOLEAN DEFAULT FALSE         -- el usuario pidió cancelar al vencer
 );
 
 CREATE TABLE plan_funcionalidades (
     plan_id        INT NOT NULL REFERENCES planes(plan_id) ON DELETE CASCADE,
     funcionalidad  VARCHAR(50) NOT NULL,  -- detectar_parqueo | detectar_mascotas | generar_reportes
     PRIMARY KEY (plan_id, funcionalidad)
+);
+
+-- Historial de facturas/cobros de Stripe
+CREATE TABLE pagos (
+    pago_id                  SERIAL PRIMARY KEY,
+    suscripcion_id           INT NOT NULL REFERENCES suscripciones(suscripcion_id) ON DELETE CASCADE,
+    condominio_id            INT NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
+    stripe_factura_id        VARCHAR(255) UNIQUE NOT NULL,  -- in_xxx de Stripe
+    stripe_intento_pago_id   VARCHAR(255),                  -- pi_xxx (puede ser NULL en trials)
+    monto                    DECIMAL(10,2) NOT NULL,
+    moneda                   VARCHAR(3) DEFAULT 'usd',
+    estado                   VARCHAR(20) NOT NULL DEFAULT 'open'
+                                 CHECK (estado IN ('draft','open','paid','uncollectible','void')),
+    periodo_inicio           DATE,
+    periodo_fin              DATE,
+    creado_en                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    pagado_en                TIMESTAMP
+);
+
+-- Registro de webhooks recibidos de Stripe (garantiza idempotencia)
+CREATE TABLE eventos_webhook_stripe (
+    stripe_evento_id  VARCHAR(255) PRIMARY KEY,  -- evt_xxx de Stripe (PK natural, no SERIAL)
+    tipo_evento       VARCHAR(100) NOT NULL,      -- customer.subscription.updated, invoice.paid, …
+    procesado_en      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    datos_evento      JSONB                       -- cuerpo completo del evento para auditoría
+);
+
+-- Reportes mensuales automáticos (solo plan Premium)
+CREATE TABLE reportes_mensuales (
+    reporte_id      SERIAL PRIMARY KEY,
+    condominio_id   INT NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
+    periodo         DATE NOT NULL,               -- primer día del mes reportado (ej: 2026-06-01)
+    total_eventos   INT DEFAULT 0,
+    eventos_parqueo INT DEFAULT 0,
+    eventos_mascotas INT DEFAULT 0,
+    eventos_acceso  INT DEFAULT 0,
+    generado_en     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    enviado_en      TIMESTAMP,                   -- cuándo se envió por email al admin
+    ruta_pdf        TEXT,                        -- path al PDF generado (S3/Supabase Storage)
+    UNIQUE (condominio_id, periodo)
 );
 
 -- ============================================================
@@ -151,7 +208,16 @@ CREATE INDEX idx_eventos_timestamp   ON eventos(timestamp_deteccion DESC);
 CREATE INDEX idx_eventos_estado      ON eventos(estado) WHERE estado = 'pendiente';
 CREATE INDEX idx_eventos_atendido_por ON eventos(atendido_por);
 CREATE INDEX idx_eventos_regla       ON eventos(regla_id);
-CREATE INDEX idx_suscripciones_activas ON suscripciones(condominio_id, is_activo) WHERE is_activo = TRUE;
+CREATE INDEX idx_suscripciones_activas    ON suscripciones(condominio_id) WHERE is_activo = TRUE;
+CREATE INDEX idx_suscripciones_stripe     ON suscripciones(stripe_suscripcion_id);
+CREATE INDEX idx_pagos_suscripcion        ON pagos(suscripcion_id);
+CREATE INDEX idx_pagos_condominio         ON pagos(condominio_id);
+CREATE INDEX idx_pagos_estado             ON pagos(estado);
+CREATE INDEX idx_pagos_creado_en          ON pagos(creado_en DESC);
+CREATE INDEX idx_webhook_tipo             ON eventos_webhook_stripe(tipo_evento);
+CREATE INDEX idx_webhook_procesado        ON eventos_webhook_stripe(procesado_en DESC);
+CREATE INDEX idx_reportes_condominio      ON reportes_mensuales(condominio_id);
+CREATE INDEX idx_reportes_periodo         ON reportes_mensuales(periodo DESC);
 CREATE INDEX idx_camaras_condominio  ON camaras(condominio_id) WHERE is_active = TRUE;
 CREATE INDEX idx_zonas_roi_camara    ON zonas_roi(camara_id);
 CREATE INDEX idx_logs_usuario        ON logs_auditoria(usuario_id);
@@ -199,22 +265,21 @@ CREATE TRIGGER trg_log_eventos
 AFTER UPDATE OF estado ON eventos
 FOR EACH ROW EXECUTE FUNCTION log_cambios_eventos();
 
--- Control de suscripciones: Basico/Pro expiran a los 30 días
-CREATE OR REPLACE FUNCTION actualizar_estado_suscripcion()
+-- Sincroniza is_activo con el estado que reporta Stripe vía webhook.
+-- 'active' y 'trialing' son los únicos estados que Stripe considera vigentes.
+-- El backend actualiza stripe_estado al recibir customer.subscription.updated
+-- y este trigger propaga el cambio a is_activo automáticamente.
+CREATE OR REPLACE FUNCTION sincronizar_activo()
 RETURNS TRIGGER AS $$
-DECLARE plan_nombre VARCHAR(20);
 BEGIN
-    SELECT nombre INTO plan_nombre FROM planes WHERE plan_id = NEW.plan_id;
-    IF plan_nombre IN ('Basico', 'Pro') AND NEW.fecha_inicio < CURRENT_DATE - INTERVAL '30 days' THEN
-        NEW.is_activo = FALSE;
-    END IF;
+    NEW.is_activo = (NEW.stripe_estado IN ('active', 'trialing'));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_control_suscripcion
-BEFORE INSERT OR UPDATE OF fecha_inicio, plan_id ON suscripciones
-FOR EACH ROW EXECUTE FUNCTION actualizar_estado_suscripcion();
+CREATE TRIGGER trg_sincronizar_activo
+BEFORE INSERT OR UPDATE OF stripe_estado ON suscripciones
+FOR EACH ROW EXECUTE FUNCTION sincronizar_activo();
 
 -- ============================================================
 -- 8. DATOS INICIALES
