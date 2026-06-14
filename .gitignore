@@ -65,3 +65,15 @@ apps/sivic_web/dist/
 firebase-credentials.json
 *.pem
 *.key
+
+# ============================================================
+# IA MODEL (entrenamientoperro) MIGRATION RULES
+# ============================================================
+entrenamientoperro/data/
+entrenamientoperro/outputs/
+entrenamientoperro/models/
+entrenamientoperro/yolov8n.pt
+entrenamientoperro/.venv/
+entrenamientoperro/__pycache__/
+entrenamientoperro/**/*.pyc
+

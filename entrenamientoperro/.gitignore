@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Caches and logs
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+
+# Large Model Weights (YOLO and PyTorch)
+*.pt
+*.pth
+models/*.pt
+models/*.pth
+yolov8n.pt
+
+# Datasets and raw data (Stanford Dogs, etc.)
+data/
+outputs/
+**/data/
+**/outputs/
