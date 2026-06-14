@@ -10,7 +10,8 @@ urlpatterns = [
     # Endpoints personalizados (deben ir ANTES del router genérico)
     path("<int:pk>/stream/",      views.stream_camara,   name="camara-stream"),
     path("<int:pk>/analizar_ia/", views.analizar_ia,     name="camara-analizar-ia"),
-    path("analizar/",             views.analizar_frame,  name="camara-analizar"),
+    path("analizar/",             views.analizar_frame,          name="camara-analizar"),
+    path("analizar_persona/",     views.analizar_frame_persona,  name="camara-analizar-persona"),
     path("probar/",               views.probar_conexion, name="camara-probar"),
     path("", include(router.urls)),
 ]

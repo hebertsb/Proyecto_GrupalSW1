@@ -220,6 +220,47 @@ def analizar_frame(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def analizar_frame_persona(request):
+    """
+    Analiza una imagen/frame con el microservicio entrenamientopersona.
+    Usado para modo archivo (video/imagen subida por el usuario).
+    Body: multipart/form-data con campo 'imagen'.
+    """
+    archivo = request.FILES.get('imagen')
+    if not archivo:
+        return Response({'error': 'Campo "imagen" requerido'}, status=400)
+
+    try:
+        import cv2
+        datos = np.frombuffer(archivo.read(), dtype=np.uint8)
+        frame = cv2.imdecode(datos, cv2.IMREAD_COLOR)
+        if frame is None:
+            return Response({'error': 'Imagen inválida'}, status=400)
+        h, w = frame.shape[:2]
+        if w > 640:
+            frame = cv2.resize(frame, (640, int(h * 640 / w)))
+        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        if not ok:
+            return Response({'error': 'Error al codificar imagen'}, status=500)
+    except ImportError:
+        return Response({'error': 'OpenCV no disponible'}, status=503)
+
+    try:
+        resp = req_ext.post(
+            f"{SIVIC_IA_URL}/api/analizar",
+            files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
+            data={'camara_id': 0, 'umbral_merodeo': 999},
+            timeout=5,
+        )
+        return Response(resp.json())
+    except req_ext.exceptions.ConnectionError:
+        return Response({'error': 'Microservicio IA no disponible'}, status=503)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def analizar_ia(request, pk):
     """
     Captura un frame de la cámara, lo envía al microservicio entrenamientopersona
@@ -245,7 +286,12 @@ def analizar_ia(request, pk):
     if not ret:
         return Response({'error': 'No se pudo capturar frame de la cámara'}, status=503)
 
-    ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    # Redimensionar a 640px de ancho para acelerar inferencia
+    h, w = frame.shape[:2]
+    if w > 640:
+        frame = cv2.resize(frame, (640, int(h * 640 / w)))
+
+    ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
     if not ok:
         return Response({'error': 'Error al codificar frame'}, status=500)
 
