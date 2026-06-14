@@ -117,6 +117,11 @@ STRIPE_WEBHOOK_SECRET  = env("STRIPE_WEBHOOK_SECRET", default="")
 # Ejemplo: YOLO_MODEL_PATH=apps/sivic_backend/modelos/sivic.pt
 YOLO_MODEL_PATH = env("YOLO_MODEL_PATH", default="")
 
+# Supabase Storage (para subir planos del condominio al bucket sivic-planos)
+# Obtener en: Supabase dashboard → Settings → API → service_role key
+SUPABASE_URL         = env("SUPABASE_URL", default="https://hrhjzoaaytioxdjttztc.supabase.co")
+SUPABASE_SERVICE_KEY = env("SUPABASE_SERVICE_KEY", default="")
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Camara, ZonaRoi
+from .models import Camara, ZonaRoi, PlanoCondominio, PosicionCamara
 
 
 class ZonaRoiSerializer(serializers.ModelSerializer):
@@ -17,3 +17,19 @@ class CamaraSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Camara
         fields = ["camara_id", "condominio", "nombre_ubicacion", "rtsp_url", "is_active", "zonas_roi"]
+
+
+class PosicionCamaraSerializer(serializers.ModelSerializer):
+    nombre_camara = serializers.CharField(source="camara.nombre_ubicacion", read_only=True)
+
+    class Meta:
+        model  = PosicionCamara
+        fields = ["posicion_id", "plano", "camara", "nombre_camara", "pos_x", "pos_y"]
+
+
+class PlanoCondominioSerializer(serializers.ModelSerializer):
+    posiciones = PosicionCamaraSerializer(many=True, read_only=True)
+
+    class Meta:
+        model  = PlanoCondominio
+        fields = ["plano_id", "condominio", "nombre", "imagen_url", "created_at", "posiciones"]

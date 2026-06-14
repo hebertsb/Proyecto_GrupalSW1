@@ -11,8 +11,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from autenticacion.permisos import EsAdmin
-from .models import Camara, ZonaRoi
-from .serializers import CamaraSerializer, ZonaRoiSerializer
+from .models import Camara, ZonaRoi, PlanoCondominio, PosicionCamara
+from .serializers import CamaraSerializer, ZonaRoiSerializer, PlanoCondominioSerializer, PosicionCamaraSerializer
 
 SIVIC_IA_URL = os.getenv("SIVIC_IA_URL", "http://127.0.0.1:8002")
 
@@ -355,3 +355,133 @@ def analizar_ia(request, pk):
             pass  # Regla no creada aún en el panel
 
     return Response(resultado)
+
+
+# ─────────────────────────────────────────────
+# Planos del condominio
+# ─────────────────────────────────────────────
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def planos_list(request):
+    """
+    GET  /api/planos/              — lista planos (filtra por ?condominio=<id>)
+    POST /api/planos/              — crea plano y sube imagen al bucket sivic-planos
+         multipart: imagen (jpg/jpeg/png), nombre, condominio_id
+    """
+    if request.method == 'GET':
+        qs = PlanoCondominio.objects.prefetch_related('posiciones__camara').all()
+        condominio_id = request.query_params.get('condominio')
+        if condominio_id:
+            qs = qs.filter(condominio_id=condominio_id)
+        return Response(PlanoCondominioSerializer(qs, many=True).data)
+
+    # POST ─────────────────────────────────────
+    archivo      = request.FILES.get('imagen')
+    nombre       = request.data.get('nombre', 'Plano Principal')
+    condominio_id = request.data.get('condominio_id')
+
+    if not archivo or not condominio_id:
+        return Response({'error': 'Campos requeridos: imagen, condominio_id'}, status=400)
+
+    ext = archivo.name.rsplit('.', 1)[-1].lower() if '.' in archivo.name else ''
+    if ext not in ('jpg', 'jpeg', 'png'):
+        return Response({'error': 'Solo se aceptan imágenes JPG, JPEG o PNG'}, status=400)
+
+    content_type = 'image/png' if ext == 'png' else 'image/jpeg'
+    file_path    = f"planos/{condominio_id}/{archivo.name}"
+    bucket       = 'sivic-planos'
+    supa_url     = settings.SUPABASE_URL
+    supa_key     = settings.SUPABASE_SERVICE_KEY
+
+    try:
+        upload = req_ext.post(
+            f"{supa_url}/storage/v1/object/{bucket}/{file_path}",
+            headers={
+                'Authorization': f'Bearer {supa_key}',
+                'Content-Type':  content_type,
+                'x-upsert':      'true',
+            },
+            data=archivo.read(),
+            timeout=30,
+        )
+        if upload.status_code not in (200, 201):
+            return Response({'error': f'Error al subir imagen: {upload.text}'}, status=500)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+    imagen_url = f"{supa_url}/storage/v1/object/public/{bucket}/{file_path}"
+
+    from condominios.models import Condominio
+    try:
+        condominio = Condominio.objects.get(pk=condominio_id)
+    except Condominio.DoesNotExist:
+        return Response({'error': 'Condominio no encontrado'}, status=404)
+
+    plano = PlanoCondominio.objects.create(
+        condominio=condominio,
+        nombre=nombre,
+        imagen_url=imagen_url,
+    )
+    return Response(PlanoCondominioSerializer(plano).data, status=201)
+
+
+@api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def plano_detail(request, pk):
+    try:
+        plano = PlanoCondominio.objects.prefetch_related('posiciones__camara').get(pk=pk)
+    except PlanoCondominio.DoesNotExist:
+        return Response({'error': 'Plano no encontrado'}, status=404)
+
+    if request.method == 'GET':
+        return Response(PlanoCondominioSerializer(plano).data)
+
+    plano.delete()
+    return Response(status=204)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def posiciones_list(request, plano_pk):
+    """
+    GET  — lista posiciones del plano
+    POST — crea o actualiza posición: { camara_id, pos_x, pos_y }
+    """
+    try:
+        plano = PlanoCondominio.objects.get(pk=plano_pk)
+    except PlanoCondominio.DoesNotExist:
+        return Response({'error': 'Plano no encontrado'}, status=404)
+
+    if request.method == 'GET':
+        qs = PosicionCamara.objects.filter(plano=plano).select_related('camara')
+        return Response(PosicionCamaraSerializer(qs, many=True).data)
+
+    camara_id = request.data.get('camara_id')
+    pos_x     = request.data.get('pos_x')
+    pos_y     = request.data.get('pos_y')
+
+    if camara_id is None or pos_x is None or pos_y is None:
+        return Response({'error': 'Campos requeridos: camara_id, pos_x, pos_y'}, status=400)
+
+    try:
+        camara = Camara.objects.get(pk=camara_id)
+    except Camara.DoesNotExist:
+        return Response({'error': 'Cámara no encontrada'}, status=404)
+
+    posicion, created = PosicionCamara.objects.update_or_create(
+        plano=plano, camara=camara,
+        defaults={'pos_x': pos_x, 'pos_y': pos_y},
+    )
+    return Response(PosicionCamaraSerializer(posicion).data, status=201 if created else 200)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def posicion_detail(request, plano_pk, camara_pk):
+    try:
+        pos = PosicionCamara.objects.get(plano_id=plano_pk, camara_id=camara_pk)
+        pos.delete()
+        return Response(status=204)
+    except PosicionCamara.DoesNotExist:
+        return Response({'error': 'Posición no encontrada'}, status=404)

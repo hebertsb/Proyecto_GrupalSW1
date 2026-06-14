@@ -13,5 +13,10 @@ urlpatterns = [
     path("analizar/",             views.analizar_frame,          name="camara-analizar"),
     path("analizar_persona/",     views.analizar_frame_persona,  name="camara-analizar-persona"),
     path("probar/",               views.probar_conexion, name="camara-probar"),
+    # Planos del condominio
+    path("planos/",                                          views.planos_list,     name="plano-list"),
+    path("planos/<int:pk>/",                                 views.plano_detail,    name="plano-detail"),
+    path("planos/<int:plano_pk>/posiciones/",                views.posiciones_list, name="posicion-list"),
+    path("planos/<int:plano_pk>/posiciones/<int:camara_pk>/", views.posicion_detail, name="posicion-detail"),
     path("", include(router.urls)),
 ]

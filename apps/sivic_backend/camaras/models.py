@@ -35,3 +35,31 @@ class ZonaRoi(models.Model):
     class Meta:
         db_table = "zonas_roi"
         managed  = False
+
+
+class PlanoCondominio(models.Model):
+    plano_id      = models.AutoField(primary_key=True)
+    condominio    = models.ForeignKey(Condominio, on_delete=models.CASCADE, db_column="condominio_id", related_name="planos")
+    nombre        = models.CharField(max_length=100)
+    imagen_url    = models.TextField()
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "planos_condominio"
+        managed  = False
+
+    def __str__(self):
+        return self.nombre
+
+
+class PosicionCamara(models.Model):
+    posicion_id = models.AutoField(primary_key=True)
+    plano       = models.ForeignKey(PlanoCondominio, on_delete=models.CASCADE, db_column="plano_id", related_name="posiciones")
+    camara      = models.ForeignKey(Camara, on_delete=models.CASCADE, db_column="camara_id", related_name="posiciones_plano")
+    pos_x       = models.DecimalField(max_digits=5, decimal_places=4)
+    pos_y       = models.DecimalField(max_digits=5, decimal_places=4)
+
+    class Meta:
+        db_table        = "posiciones_camaras"
+        managed         = False
+        unique_together = [("plano", "camara")]
