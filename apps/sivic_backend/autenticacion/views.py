@@ -93,11 +93,49 @@ def yo(request):
     description="Lista todos los usuarios. Filtra por rol con `?rol=guardia` o `?rol=admin`. Solo admin.",
     responses={200: UsuarioSerializer(many=True)},
 )
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([EsAdmin])
 def listar_usuarios(request):
+    if request.method == "POST":
+        ser = RegistroSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        d = ser.validated_data
+        if Usuario.objects.filter(email=d["email"]).exists():
+            return Response({"error": "Email ya registrado"}, status=status.HTTP_400_BAD_REQUEST)
+        usuario = Usuario.objects.create(
+            nombre        = d["nombre"],
+            email         = d["email"],
+            password_hash = make_password(d["password"]),
+            rol           = d.get("rol", "guardia"),
+        )
+        return Response(UsuarioSerializer(usuario).data, status=status.HTTP_201_CREATED)
+
     rol = request.query_params.get("rol")
     qs  = Usuario.objects.all()
     if rol:
         qs = qs.filter(rol=rol)
     return Response(UsuarioSerializer(qs, many=True).data)
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([EsAdmin])
+def gestionar_usuario(request, uid):
+    try:
+        usuario = Usuario.objects.get(pk=uid)
+    except Usuario.DoesNotExist:
+        return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        usuario.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    if "nombre" in request.data:
+        usuario.nombre = request.data["nombre"]
+    if "email" in request.data:
+        if Usuario.objects.filter(email=request.data["email"]).exclude(pk=uid).exists():
+            return Response({"error": "Email ya registrado"}, status=status.HTTP_400_BAD_REQUEST)
+        usuario.email = request.data["email"]
+    if request.data.get("password"):
+        usuario.password_hash = make_password(request.data["password"])
+    usuario.save()
+    return Response(UsuarioSerializer(usuario).data)

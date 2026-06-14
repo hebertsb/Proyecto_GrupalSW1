@@ -8,6 +8,9 @@ from .models import Usuario
 class AutenticacionJWT(BaseAuthentication):
     """Valida el Bearer token JWT en cada request."""
 
+    def authenticate_header(self, request):
+        return "Bearer"
+
     def authenticate(self, request):
         encabezado = request.headers.get("Authorization", "")
         if encabezado.startswith("Bearer "):
