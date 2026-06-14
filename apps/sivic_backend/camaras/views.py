@@ -391,14 +391,15 @@ def planos_list(request):
     content_type = 'image/png' if ext == 'png' else 'image/jpeg'
     file_path    = f"planos/{condominio_id}/{archivo.name}"
     bucket       = 'sivic-planos'
-    supa_url     = settings.SUPABASE_URL
-    supa_key     = settings.SUPABASE_SERVICE_KEY
+    supa_url     = settings.SUPABASE_URL.rstrip('/')
+    supa_key     = settings.SUPABASE_SERVICE_KEY.strip()
 
     try:
         upload = req_ext.post(
             f"{supa_url}/storage/v1/object/{bucket}/{file_path}",
             headers={
                 'Authorization': f'Bearer {supa_key}',
+                'apikey':        supa_key,
                 'Content-Type':  content_type,
                 'x-upsert':      'true',
             },
