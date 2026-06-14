@@ -331,6 +331,9 @@ def analizar_ia(request, pk):
         'merodeo':                  'merodeo',
         'vehiculo_zona_restringida':'vehiculo_no_autorizado',
         'personas_peleando':        'personas_peleando',
+        'caida_persona':            'caida_persona',
+        'intrusion_nocturna':       'intrusion_nocturna',
+        'acceso_fuera_horario':     'acceso_fuera_horario',
     }
 
     from reglas.models import ReglaInfraccion

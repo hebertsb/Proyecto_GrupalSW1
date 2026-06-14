@@ -11,6 +11,8 @@ from app.detectors.vehiculo_detector import VehiculoDetector
 from app.classifiers.pelea_classifier import PeleaClassifier
 from reglas.merodeo import limpiar_camara, verificar_merodeo
 from reglas.zona_restringida import verificar_zonas
+from reglas.caida import verificar_caida
+from reglas.horario import verificar_intrusion_nocturna, verificar_acceso_fuera_horario
 
 app = FastAPI(title="SIVIC — Detección Personas y Vehículos")
 router = APIRouter()
@@ -153,6 +155,21 @@ async def analizar(
                     "tipo": "personas_peleando",
                     "confianza": resultado_pelea["confianza"],
                 })
+
+        # 4. Caída de persona
+        for c in verificar_caida(personas):
+            alertas_tipos.append("caida_persona")
+            alertas_detalle.append({"tipo": "caida_persona", **c})
+
+        # 5. Intrusión nocturna
+        for n in verificar_intrusion_nocturna(personas):
+            alertas_tipos.append("intrusion_nocturna")
+            alertas_detalle.append({"tipo": "intrusion_nocturna", **n})
+
+        # 6. Acceso fuera de horario (zona tipo 'horario_restringido')
+        for h in verificar_acceso_fuera_horario(personas, zonas, alto, ancho):
+            alertas_tipos.append("acceso_fuera_horario")
+            alertas_detalle.append({"tipo": "acceso_fuera_horario", **h})
 
     else:  # modo vehiculos
         # 4. Vehículos en zona restringida
