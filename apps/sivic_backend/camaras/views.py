@@ -1,6 +1,8 @@
 import io
+import json
 import os
 import threading
+import requests as req_ext
 import numpy as np
 from django.conf import settings
 from django.http import StreamingHttpResponse
@@ -11,6 +13,8 @@ from rest_framework.response import Response
 from autenticacion.permisos import EsAdmin
 from .models import Camara, ZonaRoi
 from .serializers import CamaraSerializer, ZonaRoiSerializer
+
+SIVIC_IA_URL = os.getenv("SIVIC_IA_URL", "http://127.0.0.1:8002")
 
 
 # ─────────────────────────────────────────────
@@ -212,3 +216,93 @@ def analizar_frame(request):
         return Response({'detecciones': [], 'aviso': 'OpenCV no disponible'})
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def analizar_ia(request, pk):
+    """
+    Captura un frame de la cámara, lo envía al microservicio entrenamientopersona
+    y devuelve las detecciones de personas/vehículos + alertas de reglas.
+
+    POST /api/camaras/<id>/analizar_ia/
+    Body opcional: { umbral_merodeo: 30 }
+    """
+    try:
+        camara = Camara.objects.prefetch_related("zonas_roi").get(pk=pk)
+    except Camara.DoesNotExist:
+        return Response({'error': 'Cámara no encontrada'}, status=404)
+
+    try:
+        import cv2
+    except ImportError:
+        return Response({'error': 'OpenCV no disponible'}, status=503)
+
+    # Capturar un frame de la cámara
+    cap = cv2.VideoCapture(camara.rtsp_url, cv2.CAP_FFMPEG)
+    ret, frame = cap.read()
+    cap.release()
+    if not ret:
+        return Response({'error': 'No se pudo capturar frame de la cámara'}, status=503)
+
+    ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    if not ok:
+        return Response({'error': 'Error al codificar frame'}, status=500)
+
+    # Preparar zonas ROI para el microservicio
+    zonas = [
+        {
+            'nombre':     z.tipo_zona,
+            'puntos':     z.poligono_coordenadas,
+            'normalizado': True,
+        }
+        for z in camara.zonas_roi.all()
+    ]
+
+    umbral_merodeo = request.data.get('umbral_merodeo', 30)
+
+    try:
+        resp = req_ext.post(
+            f"{SIVIC_IA_URL}/api/analizar",
+            files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
+            data={
+                'camara_id':      camara.camara_id,
+                'zonas_json':     json.dumps(zonas),
+                'umbral_merodeo': umbral_merodeo,
+            },
+            timeout=5,
+        )
+        resultado = resp.json()
+    except req_ext.exceptions.ConnectionError:
+        return Response({'error': 'Microservicio IA no disponible (puerto 8002)'}, status=503)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+    # Mapear alertas a regla_id buscando por nombre en la tabla reglas_infraccion
+    # El admin crea las reglas con estos nombres_regla en el panel web
+    _MAPA_ALERTAS = {
+        'zona_restringida_persona': 'persona_zona_restringida',
+        'merodeo':                  'merodeo',
+        'vehiculo_zona_restringida':'vehiculo_no_autorizado',
+        'personas_peleando':        'personas_peleando',
+    }
+
+    from reglas.models import ReglaInfraccion
+    from eventos.services_ia import registrar_deteccion
+
+    for alerta in resultado.get('alertas', []):
+        nombre_regla = _MAPA_ALERTAS.get(alerta)
+        if not nombre_regla:
+            continue
+        try:
+            regla = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
+            det   = next(
+                (d for d in resultado.get('detalle_alertas', []) if d.get('tipo') == alerta),
+                {}
+            )
+            confianza = det.get('confianza', 0.80)
+            registrar_deteccion(camara.camara_id, regla.regla_id, confianza)
+        except ReglaInfraccion.DoesNotExist:
+            pass  # Regla no creada aún en el panel
+
+    return Response(resultado)

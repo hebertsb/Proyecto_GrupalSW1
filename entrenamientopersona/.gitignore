@@ -1,0 +1,26 @@
+# Modelos pesados
+*.pt
+*.pth
+*.onnx
+*.weights
+models/
+
+# Datos / datasets
+data/
+outputs/
+frames/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Env
+.env
