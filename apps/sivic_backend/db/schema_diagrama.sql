@@ -48,6 +48,8 @@ CREATE TABLE zonas_roi (
     camara_id            INT REFERENCES camaras(camara_id),
     poligono_coordenadas JSONB NOT NULL,
     tipo_zona            VARCHAR(50) NOT NULL
+    -- Valores: zona_prohibida | horario_restringido | perimetro | parqueo | area_comun | jardin
+    -- Constraint tipo_zona_check eliminado: ALTER TABLE zonas_roi DROP CONSTRAINT zonas_roi_tipo_zona_check
 );
 
 CREATE TABLE reglas_infraccion (
@@ -99,4 +101,21 @@ CREATE TABLE notificaciones (
     token_fcm       TEXT,
     estado          VARCHAR(20) DEFAULT 'enviada',
     created_at      TIMESTAMP
+);
+
+-- ── PLANO INTERACTIVO DEL CONDOMINIO ─────────────────────────────────────────
+CREATE TABLE planos_condominio (
+    plano_id      SERIAL PRIMARY KEY,
+    condominio_id INT REFERENCES condominio(condominio_id),
+    nombre        VARCHAR(100) NOT NULL,
+    imagen_url    TEXT NOT NULL,
+    created_at    TIMESTAMP
+);
+
+CREATE TABLE posiciones_camaras (
+    posicion_id SERIAL PRIMARY KEY,
+    plano_id    INT REFERENCES planos_condominio(plano_id),
+    camara_id   INT REFERENCES camaras(camara_id),
+    pos_x       DECIMAL(5,4) NOT NULL,
+    pos_y       DECIMAL(5,4) NOT NULL
 );

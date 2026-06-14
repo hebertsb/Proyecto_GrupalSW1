@@ -126,7 +126,9 @@ CREATE TABLE zonas_roi (
     roi_id                SERIAL PRIMARY KEY,
     camara_id             INT NOT NULL REFERENCES camaras(camara_id) ON DELETE CASCADE,
     poligono_coordenadas  JSONB NOT NULL,
-    tipo_zona             VARCHAR(50) NOT NULL CHECK (tipo_zona IN ('parqueo', 'jardin', 'area_comun'))
+    tipo_zona             VARCHAR(50) NOT NULL
+    -- CHECK eliminado en prod: ALTER TABLE zonas_roi DROP CONSTRAINT zonas_roi_tipo_zona_check
+    -- Valores válidos: zona_prohibida | horario_restringido | perimetro | parqueo | area_comun | jardin
 );
 
 -- ============================================================
@@ -180,6 +182,26 @@ CREATE TABLE dataset_eventos (
     evento_id       INT NOT NULL REFERENCES eventos(evento_id) ON DELETE CASCADE,
     etiqueta_correcta VARCHAR(50),
     PRIMARY KEY (dataset_id, evento_id)
+);
+
+-- ============================================================
+-- 8. PLANO INTERACTIVO DEL CONDOMINIO
+-- ============================================================
+CREATE TABLE planos_condominio (
+    plano_id      SERIAL PRIMARY KEY,
+    condominio_id INT NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
+    nombre        VARCHAR(100) NOT NULL,
+    imagen_url    TEXT NOT NULL,
+    created_at    TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE posiciones_camaras (
+    posicion_id SERIAL PRIMARY KEY,
+    plano_id    INT NOT NULL REFERENCES planos_condominio(plano_id) ON DELETE CASCADE,
+    camara_id   INT NOT NULL REFERENCES camaras(camara_id) ON DELETE CASCADE,
+    pos_x       DECIMAL(5,4) NOT NULL,
+    pos_y       DECIMAL(5,4) NOT NULL,
+    UNIQUE(plano_id, camara_id)
 );
 
 -- ============================================================
@@ -290,10 +312,17 @@ INSERT INTO planes (nombre, precio_mensual) VALUES
 ('Premium', 199.99);
 
 INSERT INTO reglas_infraccion (nombre_regla, descripcion) VALUES
-('bloqueo_vehicular',    'Vehículo estacionado en zona prohibida'),
-('mascota_suelta',       'Mascota sin correa en áreas comunes'),
-('acceso_no_autorizado', 'Persona ingresando sin autorización'),
-('exceso_velocidad',     'Vehículo superando límite de velocidad interno');
+('bloqueo_vehicular',      'Vehiculo estacionado en zona prohibida'),
+('mascota_suelta',         'Mascota sin correa en areas comunes'),
+('acceso_no_autorizado',   'Persona ingresando sin autorizacion'),
+('exceso_velocidad',       'Vehiculo superando limite de velocidad interno'),
+('persona_zona_restringida','Persona detectada en zona de acceso restringido'),
+('merodeo',                'Persona permanece en la misma zona mas de 30 segundos sin razon aparente'),
+('vehiculo_no_autorizado', 'Vehiculo detectado en zona restringida o en horario no permitido'),
+('personas_peleando',      'Pelea o violencia fisica detectada entre personas'),
+('caida_persona',          'Caida de persona detectada en area del condominio'),
+('intrusion_nocturna',     'Persona detectada en horario nocturno (22:00-06:00)'),
+('acceso_fuera_horario',   'Persona en zona restringida fuera del horario permitido');
 
 INSERT INTO plan_funcionalidades (plan_id, funcionalidad) VALUES
 ((SELECT plan_id FROM planes WHERE nombre = 'Basico'),   'detectar_parqueo'),
