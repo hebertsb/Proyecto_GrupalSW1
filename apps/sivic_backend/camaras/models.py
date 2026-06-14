@@ -18,7 +18,14 @@ class Camara(models.Model):
 
 
 class ZonaRoi(models.Model):
-    TIPO_CHOICES = [("parqueo", "Parqueo"), ("jardin", "Jardín"), ("area_comun", "Área Común")]
+    TIPO_CHOICES = [
+        ("parqueo",              "Parqueo"),
+        ("jardin",               "Jardín"),
+        ("area_comun",           "Área Común"),
+        ("zona_prohibida",       "Zona Prohibida"),
+        ("horario_restringido",  "Horario Restringido (piscina/quinchos)"),
+        ("perimetro",            "Perímetro del condominio"),
+    ]
 
     roi_id               = models.AutoField(primary_key=True)
     camara               = models.ForeignKey(Camara, on_delete=models.CASCADE, db_column="camara_id", related_name="zonas_roi")
