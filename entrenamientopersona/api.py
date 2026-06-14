@@ -121,48 +121,60 @@ async def analizar(
     personas  = persona_detector.detect(img)
     vehiculos = vehiculo_detector.detect(img)
 
+    n_personas  = len(personas)
+    n_vehiculos = len(vehiculos)
+
+    # Clase dominante: la que más aparece en el frame
+    # Si empate o solo personas → modo personas
+    modo = "vehiculos" if n_vehiculos > n_personas else "personas"
+
     alertas_tipos   = []
     alertas_detalle = []
 
-    # 1. Personas en zona restringida
-    if zonas and personas:
-        for v in verificar_zonas(personas, zonas, alto, ancho):
-            alertas_tipos.append("zona_restringida_persona")
-            alertas_detalle.append({"tipo": "zona_restringida_persona", **v})
+    if modo == "personas":
+        # 1. Personas en zona restringida
+        if zonas and personas:
+            for v in verificar_zonas(personas, zonas, alto, ancho):
+                alertas_tipos.append("zona_restringida_persona")
+                alertas_detalle.append({"tipo": "zona_restringida_persona", **v})
 
-    # 2. Merodeo
-    if personas:
-        for m in verificar_merodeo(personas, camara_id, umbral_merodeo):
-            alertas_tipos.append("merodeo")
-            alertas_detalle.append({"tipo": "merodeo", **m})
+        # 2. Merodeo
+        if personas:
+            for m in verificar_merodeo(personas, camara_id, umbral_merodeo):
+                alertas_tipos.append("merodeo")
+                alertas_detalle.append({"tipo": "merodeo", **m})
 
-    # 3. Vehículos en zona restringida
-    if zonas and vehiculos:
-        for v in verificar_zonas(vehiculos, zonas, alto, ancho):
-            alertas_tipos.append("vehiculo_zona_restringida")
-            alertas_detalle.append({"tipo": "vehiculo_zona_restringida", **v})
+        # 3. Pelea
+        if pelea_classifier and n_personas >= 2:
+            resultado_pelea = pelea_classifier.clasificar(img)
+            if resultado_pelea["pelea"]:
+                alertas_tipos.append("personas_peleando")
+                alertas_detalle.append({
+                    "tipo": "personas_peleando",
+                    "confianza": resultado_pelea["confianza"],
+                })
 
-    # 4. Pelea (si hay ≥2 personas y el clasificador está disponible)
-    if pelea_classifier and len(personas) >= 2:
-        resultado_pelea = pelea_classifier.clasificar(img)
-        if resultado_pelea["pelea"]:
-            alertas_tipos.append("personas_peleando")
-            alertas_detalle.append({
-                "tipo": "personas_peleando",
-                "confianza": resultado_pelea["confianza"],
-            })
+    else:  # modo vehiculos
+        # 4. Vehículos en zona restringida
+        if zonas and vehiculos:
+            for v in verificar_zonas(vehiculos, zonas, alto, ancho):
+                alertas_tipos.append("vehiculo_zona_restringida")
+                alertas_detalle.append({"tipo": "vehiculo_zona_restringida", **v})
 
-    # ── Respuesta normalizada (compatible con frontend) ───────────────────────
-    det_personas  = _normalizar(personas,  alto, ancho, "persona")
-    det_vehiculos = _normalizar(
-        vehiculos, alto, ancho, "vehiculo",
-        extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")},
-    )
+    # ── Respuesta: solo detecciones de la clase dominante ────────────────────
+    if modo == "personas":
+        detecciones = _normalizar(personas, alto, ancho, "persona")
+    else:
+        detecciones = _normalizar(
+            vehiculos, alto, ancho, "vehiculo",
+            extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")},
+        )
 
     return {
-        "alertas":        alertas_tipos,
+        "alertas":         alertas_tipos,
         "detalle_alertas": alertas_detalle,
-        "detecciones":    det_personas + det_vehiculos,
+        "detecciones":     detecciones,
+        "modo":            modo,
         "raw": {"personas": personas, "vehiculos": vehiculos},
     }
 
