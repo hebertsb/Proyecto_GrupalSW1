@@ -18,5 +18,7 @@ urlpatterns = [
     path("planos/<int:pk>/",                                 views.plano_detail,    name="plano-detail"),
     path("planos/<int:plano_pk>/posiciones/",                views.posiciones_list, name="posicion-list"),
     path("planos/<int:plano_pk>/posiciones/<int:camara_pk>/", views.posicion_detail, name="posicion-detail"),
+    path("planos/<int:plano_pk>/posiciones/<int:camara_pk>/imagenes/",                  views.imagenes_zona_list,  name="imagen-zona-list"),
+    path("planos/<int:plano_pk>/posiciones/<int:camara_pk>/imagenes/<int:imagen_pk>/",  views.imagen_zona_detail,  name="imagen-zona-detail"),
     path("", include(router.urls)),
 ]

@@ -204,6 +204,14 @@ CREATE TABLE posiciones_camaras (
     UNIQUE(plano_id, camara_id)
 );
 
+CREATE TABLE imagenes_zona (
+    imagen_id   SERIAL PRIMARY KEY,
+    posicion_id INT NOT NULL REFERENCES posiciones_camaras(posicion_id) ON DELETE CASCADE,
+    imagen_url  TEXT NOT NULL,
+    orden       SMALLINT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMP DEFAULT NOW()
+);
+
 -- ============================================================
 -- 6. NOTIFICACIONES (historial de alertas enviadas)
 -- ============================================================

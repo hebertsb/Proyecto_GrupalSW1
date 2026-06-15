@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import queue
 import threading
 import requests as req_ext
 import numpy as np
@@ -11,8 +12,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from autenticacion.permisos import EsAdmin
-from .models import Camara, ZonaRoi, PlanoCondominio, PosicionCamara
-from .serializers import CamaraSerializer, ZonaRoiSerializer, PlanoCondominioSerializer, PosicionCamaraSerializer
+from .models import Camara, ZonaRoi, PlanoCondominio, PosicionCamara, ImagenZona
+from .serializers import CamaraSerializer, ZonaRoiSerializer, PlanoCondominioSerializer, PosicionCamaraSerializer, ImagenZonaSerializer
 
 SIVIC_IA_URL = os.getenv("SIVIC_IA_URL", "http://127.0.0.1:8002")
 
@@ -68,21 +69,86 @@ os.environ.setdefault(
 )
 
 
-def _generar_frames(rtsp_url: str):
-    """Genera frames MJPEG desde una URL RTSP/HTTP via OpenCV."""
+async def _generar_frames_async(rtsp_url: str):
+    """Async generator MJPEG. Cada poll dura 100ms → Ctrl+C cierra en <200ms.
+    _reader corre en thread daemon: muere con el proceso sin bloquear shutdown.
+    """
+    import asyncio
     try:
         import cv2
     except ImportError:
         return
 
-    cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-    if not cap.isOpened():
-        return
+    q    = queue.Queue(maxsize=3)
+    stop = threading.Event()
+
+    def _reader():
+        cap_ref = [None]
+        listo   = threading.Event()
+
+        def _abrir():
+            cap_ref[0] = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+            listo.set()
+
+        threading.Thread(target=_abrir, daemon=True).start()
+        if not listo.wait(timeout=15):   # RTSP en celular puede tardar 8-12s
+            try:
+                q.put_nowait(None)
+            except queue.Full:
+                pass
+            return
+        cap = cap_ref[0]
+        if cap is None or not cap.isOpened():
+            try:
+                q.put_nowait(None)
+            except queue.Full:
+                pass
+            return
+        try:
+            while not stop.is_set():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if not stop.is_set():
+                    try:
+                        q.put(frame, timeout=0.5)
+                    except queue.Full:
+                        pass
+        finally:
+            cap.release()
+            try:
+                q.put_nowait(None)
+            except queue.Full:
+                pass
+
+    threading.Thread(target=_reader, daemon=True).start()
+
+    loop = asyncio.get_running_loop()
+
+    # _poll retorna en max 100ms → run_in_executor completa rápido → shutdown limpio
+    def _poll():
+        try:
+            return q.get(timeout=0.1)
+        except queue.Empty:
+            return Ellipsis  # sentinel "sin frame aún"
+
+    primer_frame = False
+    idle = 0
     try:
         while True:
-            ret, frame = cap.read()
-            if not ret:
+            frame = await loop.run_in_executor(None, _poll)
+            if frame is None:
                 break
+            if frame is Ellipsis:
+                idle += 1
+                # Antes del primer frame: espera hasta 20s (RTSP lento)
+                # Después: corta en 3s (cámara caída)
+                limite = 200 if not primer_frame else 30
+                if idle >= limite:
+                    break
+                continue
+            primer_frame = True
+            idle = 0
             ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 72])
             if not ok:
                 continue
@@ -90,7 +156,23 @@ def _generar_frames(rtsp_url: str):
                    b'Content-Type: image/jpeg\r\n\r\n' +
                    buf.tobytes() + b'\r\n')
     finally:
-        cap.release()
+        stop.set()
+
+
+def _camara_alcanzable(rtsp_url: str, timeout: float = 3.0) -> bool:
+    """Socket check rápido: devuelve False si la cámara no responde en `timeout` seg."""
+    import socket
+    from urllib.parse import urlparse
+    try:
+        p = urlparse(rtsp_url)
+        host = p.hostname or ''
+        port = p.port or (554 if (p.scheme or '').lower().startswith('rtsp') else 80)
+        if not host:
+            return False
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
 
 
 @api_view(['GET'])
@@ -102,8 +184,12 @@ def stream_camara(request, pk):
     except Camara.DoesNotExist:
         return Response({'error': 'Cámara no encontrada'}, status=404)
 
+    # Verificación rápida (2s) antes de bloquear un worker con OpenCV
+    if not _camara_alcanzable(camara.rtsp_url):
+        return Response({'error': 'Cámara sin señal'}, status=503)
+
     resp = StreamingHttpResponse(
-        _generar_frames(camara.rtsp_url),
+        _generar_frames_async(camara.rtsp_url),
         content_type='multipart/x-mixed-replace; boundary=frame'
     )
     resp['Cache-Control'] = 'no-cache'
@@ -279,12 +365,28 @@ def analizar_ia(request, pk):
     except ImportError:
         return Response({'error': 'OpenCV no disponible'}, status=503)
 
-    # Capturar un frame de la cámara
-    cap = cv2.VideoCapture(camara.rtsp_url, cv2.CAP_FFMPEG)
-    ret, frame = cap.read()
-    cap.release()
-    if not ret:
+    # Verificación rápida antes de bloquear con OpenCV
+    if not _camara_alcanzable(camara.rtsp_url):
+        return Response({'error': 'Cámara sin señal'}, status=503)
+
+    # Capturar un frame en thread daemon (no bloquea shutdown con Ctrl+C)
+    frame_result = [None]
+    capture_done = threading.Event()
+
+    def _capturar():
+        cap = cv2.VideoCapture(camara.rtsp_url, cv2.CAP_FFMPEG)
+        ret, fr = cap.read()
+        cap.release()
+        if ret:
+            frame_result[0] = fr
+        capture_done.set()
+
+    threading.Thread(target=_capturar, daemon=True).start()
+    if not capture_done.wait(timeout=8):
+        return Response({'error': 'Tiempo de espera agotado capturando frame'}, status=503)
+    if frame_result[0] is None:
         return Response({'error': 'No se pudo capturar frame de la cámara'}, status=503)
+    frame = frame_result[0]
 
     # Redimensionar a 640px de ancho para acelerar inferencia
     h, w = frame.shape[:2]
@@ -305,7 +407,7 @@ def analizar_ia(request, pk):
         for z in camara.zonas_roi.all()
     ]
 
-    umbral_merodeo = request.data.get('umbral_merodeo', 30)
+    umbral_merodeo = request.data.get('umbral_merodeo', 90)
 
     try:
         resp = req_ext.post(
@@ -338,19 +440,65 @@ def analizar_ia(request, pk):
 
     from reglas.models import ReglaInfraccion
     from eventos.services_ia import registrar_deteccion
+    import time as _time
 
-    for alerta in resultado.get('alertas', []):
+    alertas = resultado.get('alertas', [])
+
+    # Subir frame a Supabase como evidencia (una sola vez para todos los eventos del frame)
+    imagen_evidencia_url = ""
+    if alertas:
+        supa_url = settings.SUPABASE_URL.rstrip('/')
+        supa_key = settings.SUPABASE_SERVICE_KEY.strip()
+        ts = int(_time.time())
+        ev_path = f"evidencias/{camara.camara_id}/{ts}.jpg"
+        try:
+            up = req_ext.post(
+                f"{supa_url}/storage/v1/object/sivic-planos/{ev_path}",
+                headers={
+                    'Authorization': f'Bearer {supa_key}',
+                    'apikey':        supa_key,
+                    'Content-Type':  'image/jpeg',
+                    'x-upsert':      'true',
+                },
+                data=buf.tobytes(),
+                timeout=15,
+            )
+            if up.status_code in (200, 201):
+                imagen_evidencia_url = f"{supa_url}/storage/v1/object/public/sivic-planos/{ev_path}"
+        except Exception:
+            pass  # Sin imagen, el evento se registra igual
+
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    channel_layer = get_channel_layer()
+
+    for alerta in alertas:
         nombre_regla = _MAPA_ALERTAS.get(alerta)
         if not nombre_regla:
             continue
         try:
-            regla = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
-            det   = next(
+            regla  = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
+            det    = next(
                 (d for d in resultado.get('detalle_alertas', []) if d.get('tipo') == alerta),
                 {}
             )
             confianza = det.get('confianza', 0.80)
-            registrar_deteccion(camara.camara_id, regla.regla_id, confianza)
+            evento    = registrar_deteccion(camara.camara_id, regla.regla_id, confianza, imagen_evidencia_url)
+
+            # Broadcast WebSocket a todos los clientes conectados
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    "sivic_alertas",
+                    {
+                        "type":          "nueva_alerta",
+                        "evento_id":     evento.evento_id,
+                        "camara_nombre": camara.nombre_ubicacion,
+                        "regla_nombre":  regla.nombre_regla,
+                        "confianza_ia":  confianza,
+                        "timestamp":     evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                        "imagen_url":    imagen_evidencia_url,
+                    }
+                )
         except ReglaInfraccion.DoesNotExist:
             pass  # Regla no creada aún en el panel
 
@@ -486,3 +634,76 @@ def posicion_detail(request, plano_pk, camara_pk):
         return Response(status=204)
     except PosicionCamara.DoesNotExist:
         return Response({'error': 'Posición no encontrada'}, status=404)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def imagenes_zona_list(request, plano_pk, camara_pk):
+    """
+    GET  — lista imágenes de zona para una posición
+    POST — sube nueva imagen (multipart: campo 'imagen')
+    """
+    try:
+        pos = PosicionCamara.objects.get(plano_id=plano_pk, camara_id=camara_pk)
+    except PosicionCamara.DoesNotExist:
+        return Response({'error': 'Posición no encontrada'}, status=404)
+
+    if request.method == 'GET':
+        imgs = ImagenZona.objects.filter(posicion=pos)
+        return Response(ImagenZonaSerializer(imgs, many=True).data)
+
+    # POST: subir imagen de zona
+    archivo = request.FILES.get('imagen')
+    if not archivo:
+        return Response({'error': 'Campo "imagen" requerido'}, status=400)
+
+    ext = archivo.name.rsplit('.', 1)[-1].lower()
+    if ext not in {'jpg', 'jpeg', 'png'}:
+        return Response({'error': 'Solo JPG, JPEG o PNG'}, status=400)
+
+    total = ImagenZona.objects.filter(posicion=pos).count()
+    if total >= 10:
+        return Response({'error': 'Máximo 10 imágenes por cámara'}, status=400)
+
+    import time
+    content_type = 'image/png' if ext == 'png' else 'image/jpeg'
+    file_path    = f"zonas/{plano_pk}/{camara_pk}/{int(time.time())}.{ext}"
+    bucket       = 'sivic-planos'
+    supa_url     = settings.SUPABASE_URL.rstrip('/')
+    supa_key     = settings.SUPABASE_SERVICE_KEY.strip()
+
+    try:
+        upload = req_ext.post(
+            f"{supa_url}/storage/v1/object/{bucket}/{file_path}",
+            headers={
+                'Authorization': f'Bearer {supa_key}',
+                'apikey':        supa_key,
+                'Content-Type':  content_type,
+                'x-upsert':      'true',
+            },
+            data=archivo.read(),
+            timeout=30,
+        )
+        if upload.status_code not in (200, 201):
+            return Response({'error': f'Error Supabase: {upload.text}'}, status=500)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+    imagen_url = f"{supa_url}/storage/v1/object/public/{bucket}/{file_path}"
+    img = ImagenZona.objects.create(posicion=pos, imagen_url=imagen_url, orden=total)
+    return Response(ImagenZonaSerializer(img).data, status=201)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def imagen_zona_detail(request, plano_pk, camara_pk, imagen_pk):
+    try:
+        img = ImagenZona.objects.get(
+            imagen_id=imagen_pk,
+            posicion__plano_id=plano_pk,
+            posicion__camara_id=camara_pk,
+        )
+        img.delete()
+        return Response(status=204)
+    except ImagenZona.DoesNotExist:
+        return Response({'error': 'Imagen no encontrada'}, status=404)

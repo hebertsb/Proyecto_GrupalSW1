@@ -35,7 +35,18 @@ INSTALLED_APPS = [
     "notificaciones",
     "pagos",
     "drf_spectacular",
+    "daphne",
+    "channels",
 ]
+
+# WebSocket — InMemoryChannelLayer (sin Redis, válido para un solo proceso)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
+
+ASGI_APPLICATION = "core.asgi.application"
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",

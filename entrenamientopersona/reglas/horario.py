@@ -32,7 +32,7 @@ def verificar_intrusion_nocturna(detecciones: list,
 def verificar_acceso_fuera_horario(detecciones: list, zonas: list,
                                     alto: int, ancho: int,
                                     hora_permitida_inicio: dtime = dtime(8,  0),
-                                    hora_permitida_fin:    dtime = dtime(20, 0)) -> list:
+                                    hora_permitida_fin:    dtime = dtime(14, 0)) -> list:
     """
     Alerta si hay personas en zonas marcadas como 'horario_restringido'
     fuera del horario permitido.

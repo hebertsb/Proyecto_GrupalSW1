@@ -63,3 +63,16 @@ class PosicionCamara(models.Model):
         db_table        = "posiciones_camaras"
         managed         = False
         unique_together = [("plano", "camara")]
+
+
+class ImagenZona(models.Model):
+    imagen_id  = models.AutoField(primary_key=True)
+    posicion   = models.ForeignKey(PosicionCamara, on_delete=models.CASCADE, db_column="posicion_id", related_name="imagenes_zona")
+    imagen_url = models.TextField()
+    orden      = models.SmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "imagenes_zona"
+        managed  = False
+        ordering = ["orden", "created_at"]

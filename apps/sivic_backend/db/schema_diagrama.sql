@@ -119,3 +119,11 @@ CREATE TABLE posiciones_camaras (
     pos_x       DECIMAL(5,4) NOT NULL,
     pos_y       DECIMAL(5,4) NOT NULL
 );
+
+CREATE TABLE imagenes_zona (
+    imagen_id   SERIAL PRIMARY KEY,
+    posicion_id INT REFERENCES posiciones_camaras(posicion_id),
+    imagen_url  TEXT NOT NULL,
+    orden       SMALLINT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMP
+);

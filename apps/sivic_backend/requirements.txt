@@ -1,4 +1,7 @@
 Django>=5.2
+channels>=4.0
+daphne>=4.0
+uvicorn>=0.30
 djangorestframework>=3.16
 django-cors-headers>=4.8
 django-environ>=0.12

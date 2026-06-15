@@ -1,11 +1,21 @@
+import datetime
 from rest_framework import serializers
 from .models import Evento
 
 
 class EventoSerializer(serializers.ModelSerializer):
-    regla_nombre    = serializers.CharField(source="regla.nombre_regla", read_only=True)
-    camara_nombre   = serializers.CharField(source="camara.nombre_ubicacion", read_only=True)
-    atendido_nombre = serializers.CharField(source="atendido_por.nombre", read_only=True)
+    regla_nombre         = serializers.CharField(source="regla.nombre_regla", read_only=True)
+    camara_nombre        = serializers.CharField(source="camara.nombre_ubicacion", read_only=True)
+    atendido_nombre      = serializers.CharField(source="atendido_por.nombre", read_only=True)
+    timestamp_deteccion  = serializers.SerializerMethodField()
+
+    def get_timestamp_deteccion(self, obj):
+        ts = obj.timestamp_deteccion
+        if ts is None:
+            return None
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=datetime.timezone.utc)
+        return ts.isoformat().replace('+00:00', 'Z')
 
     class Meta:
         model  = Evento
