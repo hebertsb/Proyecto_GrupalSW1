@@ -388,14 +388,24 @@ def analizar_ia(request, pk):
         return Response({'error': 'No se pudo capturar frame de la cámara'}, status=503)
     frame = frame_result[0]
 
+    # Validar frame (frames MJPEG corruptos pueden tener shape inválido)
+    if frame is None or frame.size == 0 or len(frame.shape) < 2:
+        return Response({'error': 'Frame capturado inválido (posible corrupción MJPEG)'}, status=503)
+
     # Redimensionar a 640px de ancho para acelerar inferencia
     h, w = frame.shape[:2]
     if w > 640:
-        frame = cv2.resize(frame, (640, int(h * 640 / w)))
+        try:
+            frame = cv2.resize(frame, (640, int(h * 640 / w)))
+        except cv2.error:
+            return Response({'error': 'Error al redimensionar frame'}, status=503)
 
-    ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+    try:
+        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+    except cv2.error as e:
+        return Response({'error': f'Frame corrupto, no se pudo codificar: {e}'}, status=503)
     if not ok:
-        return Response({'error': 'Error al codificar frame'}, status=500)
+        return Response({'error': 'Error al codificar frame'}, status=503)
 
     # Preparar zonas ROI para el microservicio
     zonas = [
@@ -420,9 +430,14 @@ def analizar_ia(request, pk):
             },
             timeout=5,
         )
-        resultado = resp.json()
+        try:
+            resultado = resp.json()
+        except Exception:
+            return Response({'error': f'Microservicio devolvió respuesta inválida (HTTP {resp.status_code})'}, status=502)
     except req_ext.exceptions.ConnectionError:
         return Response({'error': 'Microservicio IA no disponible (puerto 8002)'}, status=503)
+    except req_ext.exceptions.Timeout:
+        return Response({'error': 'Microservicio IA no respondió en 5s'}, status=504)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
