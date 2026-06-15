@@ -426,6 +426,13 @@ def analizar_ia(request, pk):
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
+    # Conteo de personas y clasificación de nivel
+    _personas_det = [d for d in resultado.get('detecciones', []) if d.get('clase') in ('persona', 'person')]
+    _conteo_personas = len(_personas_det)
+    _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
+    resultado['conteo_personas'] = _conteo_personas
+    resultado['nivel']           = _nivel
+
     # Mapear alertas a regla_id buscando por nombre en la tabla reglas_infraccion
     # El admin crea las reglas con estos nombres_regla en el panel web
     _MAPA_ALERTAS = {
@@ -494,9 +501,11 @@ def analizar_ia(request, pk):
                         "evento_id":     evento.evento_id,
                         "camara_nombre": camara.nombre_ubicacion,
                         "regla_nombre":  regla.nombre_regla,
-                        "confianza_ia":  confianza,
-                        "timestamp":     evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
-                        "imagen_url":    imagen_evidencia_url,
+                        "confianza_ia":      confianza,
+                        "timestamp":         evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                        "imagen_url":        imagen_evidencia_url,
+                        "conteo_personas":   _conteo_personas,
+                        "nivel":             _nivel,
                     }
                 )
         except ReglaInfraccion.DoesNotExist:
