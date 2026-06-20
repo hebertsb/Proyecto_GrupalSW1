@@ -91,4 +91,6 @@ datasets/
 # Archivos temporales / notebooks sueltos
 untitled*.py
 *.ipynb
+!entrenamientopersona/entrenamiento_condominio.ipynb
+!entrenamientopersona/entrenamiento_pelea.ipynb
 
