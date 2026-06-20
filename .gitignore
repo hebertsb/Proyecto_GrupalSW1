@@ -86,6 +86,7 @@ datasets/
 *.pth
 *.weights
 *.onnx
+!entrenamientopersona/modelo_pelea.pth
 
 # Archivos temporales / notebooks sueltos
 untitled*.py
