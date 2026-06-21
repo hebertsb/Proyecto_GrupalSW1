@@ -39,6 +39,9 @@ class PerroCorreaDetector:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_correa.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
 
+        perros_finales = []
+        correas_validas = []
+        
         # 1. Filtrar correas que son alucinaciones (cuando el modelo duda y también predice suelto)
         for c in cajas_correa:
             es_alucinacion = False
