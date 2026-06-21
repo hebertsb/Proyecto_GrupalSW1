@@ -11,6 +11,8 @@ from rest_framework import status
 from .models import Usuario
 from .serializers import UsuarioSerializer, RegistroSerializer
 from .permisos import EsAdmin
+from condominios.models import Condominio, Plan
+from pagos import services_stripe as stripe_svc
 
 
 def _generar_token(usuario):
@@ -139,3 +141,71 @@ def gestionar_usuario(request, uid):
         usuario.password_hash = make_password(request.data["password"])
     usuario.save()
     return Response(UsuarioSerializer(usuario).data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def registro_completo(request):
+    """
+    Registro SaaS: crea admin + condominio + inicia Stripe Checkout.
+    Body: { nombre, email, password, nombre_condominio, ubicacion, plan_id, url_exito, url_cancelacion }
+    """
+    nombre            = request.data.get("nombre", "").strip()
+    email             = request.data.get("email", "").strip()
+    password          = request.data.get("password", "")
+    nombre_condominio = request.data.get("nombre_condominio", "").strip()
+    ubicacion         = request.data.get("ubicacion", "").strip()
+    plan_id           = request.data.get("plan_id")
+    url_exito         = request.data.get("url_exito", "")
+    url_cancelacion   = request.data.get("url_cancelacion", "")
+
+    if not all([nombre, email, password, nombre_condominio, plan_id]):
+        return Response(
+            {"error": "Campos requeridos: nombre, email, password, nombre_condominio, plan_id."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(password) < 8:
+        return Response({"error": "La contraseña debe tener al menos 8 caracteres."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if Usuario.objects.filter(email=email).exists():
+        return Response({"error": "El email ya está registrado."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        plan = Plan.objects.get(pk=plan_id)
+    except Plan.DoesNotExist:
+        return Response({"error": "Plan no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    if not plan.stripe_precio_id:
+        return Response({"error": "El plan no tiene precio configurado en Stripe."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Crear condominio y admin
+    condominio = Condominio.objects.create(nombre=nombre_condominio, ubicacion=ubicacion or None)
+    usuario    = Usuario.objects.create(
+        nombre=nombre,
+        email=email,
+        password_hash=make_password(password),
+        rol="admin",
+        condominio=condominio,
+    )
+
+    # Crear sesión Stripe Checkout
+    try:
+        sesion = stripe_svc.crear_checkout_session(
+            condominio,
+            plan,
+            url_exito   or f"{os.getenv('FRONTEND_URL','http://localhost:4200')}/login?pago=ok",
+            url_cancelacion or f"{os.getenv('FRONTEND_URL','http://localhost:4200')}/login?pago=cancelado",
+        )
+    except Exception as e:
+        # Si Stripe falla, eliminar lo creado para no dejar datos huérfanos
+        usuario.delete()
+        condominio.delete()
+        return Response({"error": f"Error al crear sesión de pago: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
+
+    token = _generar_token(usuario)
+    return Response({
+        "access":       token,
+        "usuario":      UsuarioSerializer(usuario).data,
+        "checkout_url": sesion.url,
+    }, status=status.HTTP_201_CREATED)

@@ -23,9 +23,14 @@ class CondominioSerializer(serializers.ModelSerializer):
 
 
 class SuscripcionSerializer(serializers.ModelSerializer):
-    plan_nombre      = serializers.CharField(source="plan.nombre", read_only=True)
+    plan_nombre       = serializers.CharField(source="plan.nombre",       read_only=True)
     condominio_nombre = serializers.CharField(source="condominio.nombre", read_only=True)
 
     class Meta:
         model  = Suscripcion
-        fields = ["suscripcion_id", "condominio", "condominio_nombre", "plan", "plan_nombre", "fecha_inicio", "is_activo"]
+        fields = [
+            "suscripcion_id", "condominio", "condominio_nombre",
+            "plan", "plan_nombre",
+            "fecha_inicio", "is_activo",
+            "stripe_estado", "periodo_actual_fin",
+        ]

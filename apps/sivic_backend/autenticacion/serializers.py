@@ -3,9 +3,11 @@ from .models import Usuario
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
+    condominio_nombre = serializers.CharField(source="condominio.nombre", read_only=True, default=None)
+
     class Meta:
         model  = Usuario
-        fields = ["usuario_id", "nombre", "email", "rol", "created_at"]
+        fields = ["usuario_id", "nombre", "email", "rol", "condominio", "condominio_nombre", "created_at"]
 
 
 class RegistroSerializer(serializers.Serializer):

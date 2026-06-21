@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from autenticacion.permisos import EsAdmin
 from .models import Plan, Condominio, Suscripcion
 from .serializers import PlanSerializer, CondominioSerializer, SuscripcionSerializer
@@ -8,7 +8,7 @@ from .serializers import PlanSerializer, CondominioSerializer, SuscripcionSerial
 class PlanViewSet(viewsets.ReadOnlyModelViewSet):
     queryset   = Plan.objects.prefetch_related("funcionalidades").all()
     serializer_class = PlanSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
 
 class CondominioViewSet(viewsets.ModelViewSet):
