@@ -57,11 +57,24 @@ def sincronizar_suscripcion(sub_datos, condominio_id=None, plan_id=None):
     Crea o actualiza la Suscripcion local desde los datos de un Subscription de Stripe.
     El trigger trg_sincronizar_activo en la BD actualiza is_activo automáticamente.
     """
+    import json
+
+    # stripe-python v5+ usa objetos tipados, no dicts. Normalizar.
+    if not isinstance(sub_datos, dict):
+        sub_datos = json.loads(str(sub_datos))
+
     from condominios.models import Suscripcion
 
     suscripcion = Suscripcion.objects.filter(
         stripe_suscripcion_id=sub_datos["id"]
     ).first()
+
+    if suscripcion is None and condominio_id:
+        # Buscar el registro pending creado al momento del registro
+        suscripcion = Suscripcion.objects.filter(
+            condominio_id=int(condominio_id),
+            stripe_suscripcion_id__isnull=True,
+        ).first()
 
     if suscripcion is None:
         if condominio_id is None:
@@ -71,11 +84,17 @@ def sincronizar_suscripcion(sub_datos, condominio_id=None, plan_id=None):
             plan_id=int(plan_id),
         )
 
+    # En Stripe API 2024-06+, current_period_* está en items.data[0], no en la raíz
+    _items = sub_datos.get("items", {}).get("data", [])
+    _item0 = _items[0] if _items else {}
+    periodo_inicio = sub_datos.get("current_period_start") or _item0.get("current_period_start")
+    periodo_fin    = sub_datos.get("current_period_end")   or _item0.get("current_period_end")
+
     suscripcion.stripe_suscripcion_id = sub_datos["id"]
     suscripcion.stripe_estado         = sub_datos["status"]
-    suscripcion.fecha_fin             = _unix_a_fecha(sub_datos.get("current_period_end"))
-    suscripcion.periodo_actual_inicio = _unix_a_fecha(sub_datos.get("current_period_start"))
-    suscripcion.periodo_actual_fin    = _unix_a_fecha(sub_datos.get("current_period_end"))
+    suscripcion.fecha_fin             = _unix_a_fecha(periodo_fin)
+    suscripcion.periodo_actual_inicio = _unix_a_fecha(periodo_inicio)
+    suscripcion.periodo_actual_fin    = _unix_a_fecha(periodo_fin)
     suscripcion.cancelar_al_vencer    = sub_datos.get("cancel_at_period_end", False)
     suscripcion.save()
     return suscripcion

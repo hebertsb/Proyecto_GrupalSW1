@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from autenticacion.permisos import EsAdmin, EsGuardia
+from autenticacion.permisos import EsAdmin, EsGuardia, filtrar_por_condominio
 from .models import Evento
 from .serializers import EventoSerializer, ActualizarEstadoSerializer, InferenciaIASerializer
 from .services_ia import registrar_deteccion, notificar_guardias
@@ -43,6 +43,7 @@ class EventoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Evento.objects.select_related("camara", "regla", "atendido_por").all()
+        qs = filtrar_por_condominio(qs, self.request, campo="camara__condominio_id")
         estado    = self.request.query_params.get("estado")
         camara_id = self.request.query_params.get("camara")
         if estado:
@@ -100,6 +101,7 @@ def reportes_resumen(request):
     hoy   = timezone.now().date()
 
     qs = Evento.objects.filter(timestamp_deteccion__gte=desde)
+    qs = filtrar_por_condominio(qs, request, campo="camara__condominio_id")
     if camara_id:
         qs = qs.filter(camara_id=camara_id)
     if regla_nom:
@@ -135,9 +137,9 @@ def reportes_resumen(request):
     regla_top  = por_regla[0]["regla__nombre_regla"]       if por_regla  else "—"
 
     # Listas para los selectores de filtro en el frontend
-    camaras_disp = list(
-        Camara.objects.filter(is_active=True).values("camara_id", "nombre_ubicacion").order_by("nombre_ubicacion")
-    )
+    camaras_qs = Camara.objects.filter(is_active=True)
+    camaras_qs = filtrar_por_condominio(camaras_qs, request)
+    camaras_disp = list(camaras_qs.values("camara_id", "nombre_ubicacion").order_by("nombre_ubicacion"))
     reglas_disp = list(
         ReglaInfraccion.objects.values_list("nombre_regla", flat=True).order_by("nombre_regla")
     )

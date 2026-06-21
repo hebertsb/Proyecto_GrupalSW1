@@ -11,7 +11,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from autenticacion.permisos import EsAdmin
+from autenticacion.permisos import EsAdmin, filtrar_por_condominio
 from .models import Camara, ZonaRoi, PlanoCondominio, PosicionCamara, ImagenZona
 from .serializers import CamaraSerializer, ZonaRoiSerializer, PlanoCondominioSerializer, PosicionCamaraSerializer, ImagenZonaSerializer
 
@@ -32,6 +32,7 @@ class CamaraViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Camara.objects.prefetch_related("zonas_roi").all()
+        qs = filtrar_por_condominio(qs, self.request)
         condominio_id = self.request.query_params.get("condominio")
         if condominio_id:
             qs = qs.filter(condominio_id=condominio_id)
@@ -53,6 +54,7 @@ class ZonaRoiViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = ZonaRoi.objects.select_related("camara").all()
+        qs = filtrar_por_condominio(qs, self.request, campo="camara__condominio_id")
         camara_id = self.request.query_params.get("camara")
         if camara_id:
             qs = qs.filter(camara_id=camara_id)
@@ -693,6 +695,7 @@ def planos_list(request):
     """
     if request.method == 'GET':
         qs = PlanoCondominio.objects.prefetch_related('posiciones__camara').all()
+        qs = filtrar_por_condominio(qs, request)
         condominio_id = request.query_params.get('condominio')
         if condominio_id:
             qs = qs.filter(condominio_id=condominio_id)

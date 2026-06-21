@@ -11,16 +11,17 @@ from rest_framework import status
 from .models import Usuario
 from .serializers import UsuarioSerializer, RegistroSerializer
 from .permisos import EsAdmin
-from condominios.models import Condominio, Plan
+from condominios.models import Condominio, Plan, Suscripcion
 from pagos import services_stripe as stripe_svc
 
 
 def _generar_token(usuario):
     payload = {
-        "usuario_id": usuario.usuario_id,
-        "email":      usuario.email,
-        "rol":        usuario.rol,
-        "exp":        datetime.datetime.utcnow() + datetime.timedelta(days=7),
+        "usuario_id":    usuario.usuario_id,
+        "email":         usuario.email,
+        "rol":           usuario.rol,
+        "condominio_id": usuario.condominio_id,
+        "exp":           datetime.datetime.utcnow() + datetime.timedelta(days=7),
     }
     return jwt.encode(payload, os.environ.get("SECRET_KEY", ""), algorithm="HS256")
 
@@ -104,16 +105,22 @@ def listar_usuarios(request):
         d = ser.validated_data
         if Usuario.objects.filter(email=d["email"]).exists():
             return Response({"error": "Email ya registrado"}, status=status.HTTP_400_BAD_REQUEST)
+        # Asignar el mismo condominio del admin que crea el usuario
+        condominio_id = getattr(request.user, "condominio_id", None)
         usuario = Usuario.objects.create(
             nombre        = d["nombre"],
             email         = d["email"],
             password_hash = make_password(d["password"]),
             rol           = d.get("rol", "guardia"),
+            condominio_id = condominio_id,
         )
         return Response(UsuarioSerializer(usuario).data, status=status.HTTP_201_CREATED)
 
     rol = request.query_params.get("rol")
-    qs  = Usuario.objects.all()
+    qs  = Usuario.objects.exclude(rol="superadmin")
+    # Admin solo ve usuarios de su propio condominio
+    if request.user.rol == "admin" and request.user.condominio_id:
+        qs = qs.filter(condominio_id=request.user.condominio_id)
     if rol:
         qs = qs.filter(rol=rol)
     return Response(UsuarioSerializer(qs, many=True).data)
@@ -189,19 +196,33 @@ def registro_completo(request):
         condominio=condominio,
     )
 
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4200")
+    # {CHECKOUT_SESSION_ID} es reemplazado por Stripe en la redirección
+    exito_url      = url_exito      or f"{frontend_url}/login?pago=ok&session_id={{CHECKOUT_SESSION_ID}}"
+    cancelacion_url = url_cancelacion or f"{frontend_url}/login?pago=cancelado"
+
+    # Inyectar session_id en la URL de éxito si el frontend no lo incluyó
+    if "session_id" not in exito_url:
+        sep = "&" if "?" in exito_url else "?"
+        exito_url = exito_url + sep + "session_id={CHECKOUT_SESSION_ID}"
+
     # Crear sesión Stripe Checkout
     try:
-        sesion = stripe_svc.crear_checkout_session(
-            condominio,
-            plan,
-            url_exito   or f"{os.getenv('FRONTEND_URL','http://localhost:4200')}/login?pago=ok",
-            url_cancelacion or f"{os.getenv('FRONTEND_URL','http://localhost:4200')}/login?pago=cancelado",
-        )
+        sesion = stripe_svc.crear_checkout_session(condominio, plan, exito_url, cancelacion_url)
     except Exception as e:
         # Si Stripe falla, eliminar lo creado para no dejar datos huérfanos
         usuario.delete()
         condominio.delete()
         return Response({"error": f"Error al crear sesión de pago: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
+
+    # Crear suscripción en estado pending para que aparezca en la UI inmediatamente.
+    # El endpoint /api/pagos/confirmar-sesion/ la actualiza a active cuando Stripe confirma.
+    Suscripcion.objects.create(
+        condominio=condominio,
+        plan=plan,
+        stripe_estado="pending",
+        is_activo=False,
+    )
 
     token = _generar_token(usuario)
     return Response({
