@@ -10,6 +10,9 @@ from app.detectors.persona_detector import PersonaDetector
 from app.detectors.vehiculo_detector import VehiculoDetector
 from app.classifiers.pelea_classifier import PeleaClassifier
 from app.classifiers.vehiculo_estacionamiento_classifier import VehiculoEstacionamientoClassifier
+from app.detectors.perro_correa_detector import PerroCorreaDetector
+from app.detectors.heces_detector import HecesDetector
+from app.classifiers.perro_raza_classifier import PerroRazaClassifier
 from reglas.merodeo import limpiar_camara, verificar_merodeo
 from reglas.zona_restringida import verificar_zonas
 from reglas.caida import verificar_caida
@@ -30,13 +33,33 @@ persona_detector:              Optional[PersonaDetector]                  = None
 vehiculo_detector:             Optional[VehiculoDetector]                 = None
 pelea_classifier:              Optional[PeleaClassifier]                  = None
 vehiculo_estacionamiento_cls:  Optional[VehiculoEstacionamientoClassifier] = None
+perro_correa_detector:         Optional[PerroCorreaDetector]              = None
+heces_detector:                Optional[HecesDetector]                    = None
+perro_raza_classifier:         Optional[PerroRazaClassifier]              = None
 
 
 @app.on_event("startup")
 async def startup():
     global persona_detector, vehiculo_detector, pelea_classifier, vehiculo_estacionamiento_cls
+    global perro_correa_detector, heces_detector, perro_raza_classifier
     persona_detector  = PersonaDetector()
     vehiculo_detector = VehiculoDetector()
+    
+    try:
+        perro_correa_detector = PerroCorreaDetector()
+        print("[SIVIC] PerroCorreaDetector cargado")
+    except Exception as e: print(f"[SIVIC] Error PerroCorreaDetector: {e}")
+    
+    try:
+        heces_detector = HecesDetector()
+        print("[SIVIC] HecesDetector cargado")
+    except Exception as e: print(f"[SIVIC] Error HecesDetector: {e}")
+        
+    try:
+        perro_raza_classifier = PerroRazaClassifier()
+        print("[SIVIC] PerroRazaClassifier cargado")
+    except Exception as e: print(f"[SIVIC] Error PerroRazaClassifier: {e}")
+    
     try:
         pelea_classifier = PeleaClassifier()
         print("[SIVIC] PeleaClassifier cargado")
@@ -109,31 +132,50 @@ async def detect_vehiculos(file: UploadFile = File(...)):
 async def analizar(
     file: UploadFile = File(...),
     camara_id:      int           = Form(DEFAULT_CAMARA_ID),
-    zonas_json:     Optional[str] = Form(None),   # JSON de zonas prohibidas
-    umbral_merodeo: int           = Form(30),      # segundos para merodeo
+    zonas_json:     Optional[str] = Form(None),
+    umbral_merodeo: int           = Form(30),
+    modo_filtro:    str           = Form("todo"),
 ):
-    """
-    Endpoint principal. Recibe frame de cámara y devuelve detecciones + alertas.
+    # 1. Decodificar la imagen enviada
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        return {"error": "Imagen inválida"}
+        
+    cv2.imwrite("last_image.jpg", img)
 
-    zonas_json (opcional):
-    [{"nombre":"Entrada","puntos":[[10,20],[200,20],[200,300],[10,300]],"normalizado":false}]
-    Si normalizado=true, coordenadas van de 0.0 a 1.0 relativas a la imagen.
-    """
-    if not persona_detector or not vehiculo_detector:
-        raise HTTPException(500, "Detectores no inicializados")
+    # 2. Parsear zonas si vienen (para las reglas de cruce, etc.)
+    zonas_dict = {}
+    if zonas_json:
+        import json
+        try:
+            arr = json.loads(zonas_json)
+            for z in arr:
+                zonas_dict[z["nombre"]] = z["puntos"]
+        except Exception:
+            pass
 
-    img = _leer_imagen(await file.read())
-    alto, ancho = img.shape[:2]
-    zonas = json.loads(zonas_json) if zonas_json else []
+    # 3. Ejecutar inferencias según el filtro
+    personas = []
+    vehiculos = []
+    perros = []
+    heces = []
 
-    # ── Detectar ambas clases siempre (independiente) ────────────────────────
-    personas  = persona_detector.detect(img)
-    vehiculos = vehiculo_detector.detect(img)
+    if modo_filtro in ["todo", "personas"]:
+        personas  = persona_detector.detect(img) if persona_detector else []
+    if modo_filtro in ["todo", "vehiculos"]:
+        vehiculos = vehiculo_detector.detect(img) if vehiculo_detector else []
+    if modo_filtro in ["todo", "mascotas"]:
+        perros = perro_correa_detector.detect(img) if perro_correa_detector else []
+        heces = heces_detector.detect(img) if heces_detector else []
 
     alertas_tipos   = []
     alertas_detalle = []
 
     # ── Alertas de PERSONAS ───────────────────────────────────────────────────
+    alto, ancho = img.shape[:2]
+    zonas = json.loads(zonas_json) if zonas_json else []
 
     # 1. Personas en zona restringida
     if zonas and personas:
@@ -191,18 +233,57 @@ async def analizar(
                 "clase":     resultado_est["clase"],
             })
 
+    # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
+    for p in perros:
+        # Clasificar raza
+        raza = "Perro"
+        raza = "Perro"
+        if perro_raza_classifier:
+            x1, y1, x2, y2 = p["bbox"]
+            crop = img[max(0, y1):min(alto, y2), max(0, x1):min(ancho, x2)]
+            raza_data = perro_raza_classifier.clasificar(crop)
+            raza = raza_data["raza"]
+            p["raza"] = raza
+
+        # LÓGICA RÁPIDA Y EFECTIVA PARA TUS ESCENARIOS:
+        # 1. Si el perro no tiene correa, ya viene con suelto=True.
+        # 2. Si tiene correa (suelto=False) pero no hay NINGUNA persona visible en toda la cámara,
+        #    asumimos que el perro se escapó arrastrando la correa.
+        if not p["suelto"]:
+            if len(personas) == 0:
+                p["suelto"] = True  # ¡Se escapó con todo y correa!
+
+        # Alerta sin correa
+        if p["suelto"]:
+            alertas_tipos.append("perro_sin_correa")
+            alertas_detalle.append({
+                "tipo": "perro_sin_correa",
+                "confianza": p["confianza"],
+                "raza": raza
+            })
+            
+    for h in heces:
+        alertas_tipos.append("heces_detectadas")
+        alertas_detalle.append({
+            "tipo": "heces_detectadas",
+            "confianza": h["confianza"],
+            "clase": h["clase"]
+        })
+
     # ── Respuesta ─────────────────────────────────────────────────────────────
     return {
         "alertas":         alertas_tipos,
         "detalle_alertas": alertas_detalle,
         "detecciones":     _normalizar(personas, alto, ancho, "persona") +
-                           _normalizar(vehiculos, alto, ancho, "vehiculo",
-                                       extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")}),
+                           _normalizar(vehiculos, alto, ancho, "vehiculo", extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")}) +
+                           _normalizar(perros, alto, ancho, "perro", extra_fn=lambda b: {"raza": b.get("raza", "Perro"), "suelto": b.get("suelto", False)}) +
+                           _normalizar(heces, alto, ancho, "heces", extra_fn=lambda b: {"clase_heces": b.get("clase", "Heces")}),
         "conteo": {
             "personas":  len(personas),
             "vehiculos": len(vehiculos),
+            "perros": len(perros)
         },
-        "raw": {"personas": personas, "vehiculos": vehiculos},
+        "raw": {"personas": personas, "vehiculos": vehiculos, "perros": perros, "heces": heces},
     }
 
 

@@ -318,6 +318,7 @@ def analizar_frame_persona(request):
     Body: multipart/form-data con campo 'imagen'.
     """
     archivo = request.FILES.get('imagen')
+    modo_filtro = request.data.get('modo_filtro', 'todo')
     if not archivo:
         return Response({'error': 'Campo "imagen" requerido'}, status=400)
 
@@ -340,7 +341,7 @@ def analizar_frame_persona(request):
         resp = req_ext.post(
             f"{SIVIC_IA_URL}/api/analizar",
             files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
-            data={'camara_id': 0, 'umbral_merodeo': 999},
+            data={'camara_id': 0, 'umbral_merodeo': 999, 'modo_filtro': modo_filtro},
             timeout=5,
         )
         return Response(resp.json())
@@ -423,6 +424,7 @@ def analizar_ia(request, pk):
     ]
 
     umbral_merodeo = request.data.get('umbral_merodeo', 15)  # demo: 15 análisis = ~30s (prod: 90)
+    modo_filtro = request.data.get('modo_filtro', 'todo')
 
     try:
         resp = req_ext.post(
@@ -432,6 +434,7 @@ def analizar_ia(request, pk):
                 'camara_id':      camara.camara_id,
                 'zonas_json':     json.dumps(zonas),
                 'umbral_merodeo': umbral_merodeo,
+                'modo_filtro':    modo_filtro,
             },
             timeout=5,
         )
@@ -464,6 +467,8 @@ def analizar_ia(request, pk):
         'intrusion_nocturna':        'intrusion_nocturna',
         'acceso_fuera_horario':      'acceso_fuera_horario',
         'vehiculo_mal_estacionado':  'vehiculo_mal_estacionado',
+        'perro_sin_correa':          'mascota_sin_correa',
+        'heces_detectadas':          'heces_mascota',
     }
 
     from reglas.models import ReglaInfraccion
@@ -574,12 +579,13 @@ def analizar_local(request, pk):
         for z in camara.zonas_roi.all()
     ]
     umbral_merodeo = request.data.get('umbral_merodeo', 15)
+    modo_filtro = request.data.get('modo_filtro', 'todo')
 
     try:
         resp = req_ext.post(
             f"{SIVIC_IA_URL}/api/analizar",
             files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
-            data={'camara_id': camara.camara_id, 'zonas_json': json.dumps(zonas), 'umbral_merodeo': umbral_merodeo},
+            data={'camara_id': camara.camara_id, 'zonas_json': json.dumps(zonas), 'umbral_merodeo': umbral_merodeo, 'modo_filtro': modo_filtro},
             timeout=5,
         )
         try:
@@ -606,6 +612,8 @@ def analizar_local(request, pk):
         'caida_persona':            'caida_persona',
         'intrusion_nocturna':       'intrusion_nocturna',
         'acceso_fuera_horario':     'acceso_fuera_horario',
+        'perro_sin_correa':         'mascota_sin_correa',
+        'heces_detectadas':         'heces_mascota',
     }
 
     from reglas.models import ReglaInfraccion

@@ -21,7 +21,7 @@ class PoopDetector:
     def detect(self, image_cv2) -> list:
         if self.model is not None:
             try:
-                results = self.model(image_cv2)
+                results = self.model(image_cv2, verbose=False)
                 heces = []
                 for r in results:
                     for box in r.boxes:
