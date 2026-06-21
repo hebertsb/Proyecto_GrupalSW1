@@ -220,7 +220,7 @@ def registro_completo(request):
     Suscripcion.objects.create(
         condominio=condominio,
         plan=plan,
-        stripe_estado="pending",
+        stripe_estado="incomplete",
         is_activo=False,
     )
 
