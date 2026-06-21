@@ -27,11 +27,15 @@ def verificar_mascota_suelta(perros: list, personas_baja_conf: list, alto: int, 
                 dueno_cerca = True
                 break
 
-        # Regla de oro geométrica:
-        # Como el modelo YOLO está prediciendo falsos positivos de correa muy altos,
-        # usamos la heurística geométrica como la fuente de la verdad.
-        p["suelto"] = not dueno_cerca
-            
+        # Lógica balanceada:
+        # Si YOLO detectó correa de forma contundente, le creemos (para salvar el video POV).
+        # Si YOLO dice "suelto", verificamos si hay dueño cerca.
+        if not p["suelto"]:
+            pass # Confiamos en YOLO
+        else:
+            if dueno_cerca:
+                p["suelto"] = False
+                
         if p["suelto"]:
             alertas.append({
                 "confianza": p["confianza"]

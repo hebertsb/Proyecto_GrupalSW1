@@ -32,20 +32,14 @@ class PerroCorreaDetector:
                 clase_idx = int(box.cls[0])
                 nombre_clase = self.model.names[clase_idx]
                 
-                if nombre_clase in ["Dog-without-Leash", "Dangerous_Dogs"] and conf >= 0.15:
+                if nombre_clase in ["Dog-without-Leash", "Dangerous_Dogs"] and conf >= 0.05:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
                 elif nombre_clase == "dog leash" and conf >= 0.05:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_correa.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
 
-        # Heurística: Si detecta una correa (dog leash) en la imagen, anulamos las cajas de perro suelto
-        # que se superpongan o estén muy cerca, porque el modelo de Roboflow suele confundirse y predecir ambas.
-        perros_finales = []
-        correas_validas = []
-        sueltos_validos = []
-        
-        # 1. Filtrar correas que son alucinaciones (cuando el "suelto" es muchísimo más seguro)
+        # 1. Filtrar correas que son alucinaciones (cuando el modelo duda y también predice suelto)
         for c in cajas_correa:
             es_alucinacion = False
             cx1, cy1, cx2, cy2 = c["bbox"]
@@ -56,31 +50,17 @@ class PerroCorreaDetector:
                 sx1, sy1, sx2, sy2 = s["bbox"]
                 scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
                 dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
+                # Si ambas cajas apuntan al mismo perro, le damos prioridad absoluta a "Suelto"
+                # porque el modelo está muy sesgado a predecir correas falsas.
                 if dist < max(cw, ch) * 1.5:
-                    if s["confianza"] > c["confianza"] + 0.20:
-                        es_alucinacion = True
-                        break
+                    es_alucinacion = True
+                    break
             
             if not es_alucinacion:
                 correas_validas.append(c)
                 
-        # 2. Filtrar perros sueltos que en realidad tienen correa válida
-        for s in cajas_sueltos:
-            es_falso_suelto = False
-            sx1, sy1, sx2, sy2 = s["bbox"]
-            scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
-            sw, sh = sx2 - sx1, sy2 - sy1
-            
-            for c in correas_validas:
-                cx1, cy1, cx2, cy2 = c["bbox"]
-                ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
-                dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
-                if dist < max(sw, sh) * 1.5:
-                    es_falso_suelto = True
-                    break
-                    
-            if not es_falso_suelto:
-                sueltos_validos.append(s)
+        # 2. Los sueltos siempre son válidos si pasaron el filtro inicial
+        sueltos_validos = cajas_sueltos
                 
         # 3. Construir la lista final
         for c in correas_validas:
