@@ -25,18 +25,18 @@ class PerroCorreaDetector:
         for r in results:
             for box in r.boxes:
                 conf = float(box.conf[0])
-                if conf < conf_min:
+                if conf < 0.10:
                     continue
                     
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 clase_idx = int(box.cls[0])
                 nombre_clase = self.model.names[clase_idx]
                 
-                print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
-                
-                if nombre_clase == "Dog-without-Leash":
+                if nombre_clase == "Dog-without-Leash" and conf >= 0.40:
+                    print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
-                elif nombre_clase == "dog leash":
+                elif nombre_clase == "dog leash" and conf >= 0.10:
+                    print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_correa.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
 
         # Heurística: Si detecta una correa (dog leash) en la imagen, anulamos las cajas de perro suelto
