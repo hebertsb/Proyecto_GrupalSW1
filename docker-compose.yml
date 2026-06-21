@@ -24,6 +24,8 @@ services:
       PERSONA_MODEL_PATH:          /app/modelos/modelo_condominio_final.pt
       PELEA_MODEL_PATH:            /app/modelos/modelo_pelea.pth
       VEHICULO_EST_MODEL_PATH:     /app/modelos/modelo_vehiculo_estacionamiento.pth
+      PERRO_CORREA_MODEL_PATH:     /app/modelos/modelo_correa_nuevo.pt
+      HECES_MODEL_PATH:            /app/modelos/modelo_heces.pt
       DJANGO_BACKEND_URL:          http://django:8000
     expose:
       - "8002"
