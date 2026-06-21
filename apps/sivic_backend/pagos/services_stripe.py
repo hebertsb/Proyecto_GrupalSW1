@@ -69,8 +69,12 @@ def sincronizar_suscripcion(sub_datos, condominio_id=None, plan_id=None):
         stripe_suscripcion_id=sub_datos["id"]
     ).first()
 
+    # Si el registro encontrado tiene un condominio_id incorrecto, corregirlo.
+    if suscripcion is not None and condominio_id and suscripcion.condominio_id != int(condominio_id):
+        suscripcion.condominio_id = int(condominio_id)
+
     if suscripcion is None and condominio_id:
-        # Buscar el registro pending creado al momento del registro
+        # Buscar el registro incomplete creado al momento del registro
         suscripcion = Suscripcion.objects.filter(
             condominio_id=int(condominio_id),
             stripe_suscripcion_id__isnull=True,

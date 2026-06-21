@@ -6,6 +6,7 @@ urlpatterns = [
     path("registro/",          views.registro),
     path("registro-completo/", views.registro_completo),
     path("yo/",                views.yo),
+    path("mi-plan/",           views.mi_plan),
     path("usuarios/",              views.listar_usuarios),
     path("usuarios/<int:uid>/",    views.gestionar_usuario),
 ]

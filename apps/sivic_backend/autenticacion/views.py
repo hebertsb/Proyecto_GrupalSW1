@@ -118,9 +118,11 @@ def listar_usuarios(request):
 
     rol = request.query_params.get("rol")
     qs  = Usuario.objects.exclude(rol="superadmin")
-    # Admin solo ve usuarios de su propio condominio
-    if request.user.rol == "admin" and request.user.condominio_id:
-        qs = qs.filter(condominio_id=request.user.condominio_id)
+    if request.user.rol == "admin":
+        if request.user.condominio_id:
+            qs = qs.filter(condominio_id=request.user.condominio_id)
+        else:
+            qs = qs.none()   # admin sin condominio → lista vacía
     if rol:
         qs = qs.filter(rol=rol)
     return Response(UsuarioSerializer(qs, many=True).data)
@@ -148,6 +150,32 @@ def gestionar_usuario(request, uid):
         usuario.password_hash = make_password(request.data["password"])
     usuario.save()
     return Response(UsuarioSerializer(usuario).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def mi_plan(request):
+    """
+    Retorna el plan activo y sus funcionalidades para el condominio del usuario.
+    Usado por el frontend para mostrar/ocultar vistas según el plan contratado.
+    """
+    condominio_id = getattr(request.user, "condominio_id", None)
+    if not condominio_id:
+        return Response({"plan": None, "funcionalidades": []})
+
+    from condominios.models import Suscripcion
+    suscripcion = (
+        Suscripcion.objects
+        .filter(condominio_id=condominio_id, is_activo=True)
+        .select_related("plan")
+        .prefetch_related("plan__funcionalidades")
+        .first()
+    )
+    if not suscripcion:
+        return Response({"plan": None, "funcionalidades": []})
+
+    funcs = list(suscripcion.plan.funcionalidades.values_list("funcionalidad", flat=True))
+    return Response({"plan": suscripcion.plan.nombre, "funcionalidades": funcs})
 
 
 @api_view(["POST"])
