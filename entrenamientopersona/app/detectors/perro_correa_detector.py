@@ -25,7 +25,7 @@ class PerroCorreaDetector:
         for r in results:
             for box in r.boxes:
                 conf = float(box.conf[0])
-                if conf < 0.10:
+                if conf < 0.05:
                     continue
                     
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
@@ -35,7 +35,7 @@ class PerroCorreaDetector:
                 if nombre_clase == "Dog-without-Leash" and conf >= 0.40:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
-                elif nombre_clase == "dog leash" and conf >= 0.10:
+                elif nombre_clase == "dog leash" and conf >= 0.05:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_correa.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
 

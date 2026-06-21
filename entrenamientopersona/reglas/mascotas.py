@@ -30,13 +30,9 @@ def verificar_mascota_suelta(perros: list, personas_baja_conf: list, alto: int, 
         # Lógica balanceada para cubrir todos los casos (incluyendo videos POV)
         if not p["suelto"]:
             # El modelo YOLO dice que SÍ HAY CORREA.
-            # En videos POV (primera persona), el dueño no sale en cámara, pero la correa se ve clara.
-            # Si la confianza de la correa es alta (ej. > 0.35), confiamos ciegamente en el modelo.
-            if p["confianza"] < 0.35:
-                # Si la confianza es baja, puede ser una "alucinación" en un perro callejero.
-                # Exigimos confirmación geométrica: si no hay humano cerca, asumimos que es suelto.
-                if not dueno_cerca:
-                    p["suelto"] = True
+            # Confiamos ciegamente en el modelo para evitar falsas alarmas en videos POV
+            # donde el dueño está detrás de cámara y la confianza puede bajar.
+            pass
         else:
             # El modelo YOLO dice que el perro está SUELTO (no vio la correa).
             # Si vemos al dueño pegado al perro, asumimos que la IA falló y sí tiene correa.
