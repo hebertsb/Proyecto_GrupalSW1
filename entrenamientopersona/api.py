@@ -12,7 +12,6 @@ from app.classifiers.pelea_classifier import PeleaClassifier
 from app.classifiers.vehiculo_estacionamiento_classifier import VehiculoEstacionamientoClassifier
 from app.detectors.perro_correa_detector import PerroCorreaDetector
 from app.detectors.heces_detector import HecesDetector
-from app.classifiers.perro_raza_classifier import PerroRazaClassifier
 from reglas.merodeo import limpiar_camara, verificar_merodeo
 from reglas.zona_restringida import verificar_zonas
 from reglas.caida import verificar_caida
@@ -40,8 +39,7 @@ perro_raza_classifier:         Optional[PerroRazaClassifier]              = None
 
 @app.on_event("startup")
 async def startup():
-    global persona_detector, vehiculo_detector, pelea_classifier, vehiculo_estacionamiento_cls
-    global perro_correa_detector, heces_detector, perro_raza_classifier
+    global perro_correa_detector, heces_detector
     persona_detector  = PersonaDetector()
     vehiculo_detector = VehiculoDetector()
     
@@ -54,11 +52,6 @@ async def startup():
         heces_detector = HecesDetector()
         print("[SIVIC] HecesDetector cargado")
     except Exception as e: print(f"[SIVIC] Error HecesDetector: {e}")
-        
-    try:
-        perro_raza_classifier = PerroRazaClassifier()
-        print("[SIVIC] PerroRazaClassifier cargado")
-    except Exception as e: print(f"[SIVIC] Error PerroRazaClassifier: {e}")
     
     try:
         pelea_classifier = PeleaClassifier()
@@ -235,16 +228,6 @@ async def analizar(
 
     # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
     for p in perros:
-        # Clasificar raza
-        raza = "Perro"
-        raza = "Perro"
-        raza = "Perro"
-        if perro_raza_classifier:
-            x1, y1, x2, y2 = p["bbox"]
-            crop = img[max(0, y1):min(alto, y2), max(0, x1):min(ancho, x2)]
-            raza_data = perro_raza_classifier.clasificar(crop)
-            raza = raza_data["raza"]
-            p["raza"] = raza
 
         es_suelto = p["suelto"]
         if not es_suelto:
@@ -259,8 +242,7 @@ async def analizar(
             alertas_tipos.append("perro_sin_correa")
             alertas_detalle.append({
                 "tipo": "perro_sin_correa",
-                "confianza": p["confianza"],
-                "raza": raza
+                "confianza": p["confianza"]
             })
             
     for h in heces:
@@ -271,13 +253,20 @@ async def analizar(
             "clase": h["clase"]
         })
 
+    nivel = None
+    if "personas_peleando" in alertas_tipos or "caida_persona" in alertas_tipos or "intrusion_nocturna" in alertas_tipos:
+        nivel = "critico"
+    elif len(alertas_tipos) > 0:
+        nivel = "sospechoso"
+
     # ── Respuesta ─────────────────────────────────────────────────────────────
     return {
         "alertas":         alertas_tipos,
         "detalle_alertas": alertas_detalle,
+        "nivel":           nivel,
         "detecciones":     _normalizar(personas, alto, ancho, "persona") +
                            _normalizar(vehiculos, alto, ancho, "vehiculo", extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")}) +
-                           _normalizar(perros, alto, ancho, "perro", extra_fn=lambda b: {"raza": b.get("raza", "Perro"), "suelto": b.get("suelto", False)}) +
+                           _normalizar(perros, alto, ancho, "perro", extra_fn=lambda b: {"suelto": b.get("suelto", False)}) +
                            _normalizar(heces, alto, ancho, "heces", extra_fn=lambda b: {"clase_heces": b.get("clase", "Heces")}),
         "conteo": {
             "personas":  len(personas),
