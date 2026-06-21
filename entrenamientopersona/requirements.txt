@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-ultralytics
+ultralytics==8.2.103
 opencv-python
 numpy
 requests
