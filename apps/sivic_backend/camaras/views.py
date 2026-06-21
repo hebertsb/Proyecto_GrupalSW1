@@ -17,6 +17,9 @@ from .serializers import CamaraSerializer, ZonaRoiSerializer, PlanoCondominioSer
 
 SIVIC_IA_URL = os.getenv("SIVIC_IA_URL", "http://127.0.0.1:8002")
 
+# Cache en memoria del último frame recibido por cámara local (camara_id → bytes JPEG)
+_ultimo_frame_cache: dict = {}
+
 
 # ─────────────────────────────────────────────
 # ViewSets existentes
@@ -417,7 +420,7 @@ def analizar_ia(request, pk):
         for z in camara.zonas_roi.all()
     ]
 
-    umbral_merodeo = request.data.get('umbral_merodeo', 90)
+    umbral_merodeo = request.data.get('umbral_merodeo', 15)  # demo: 15 análisis = ~30s (prod: 90)
 
     try:
         resp = req_ext.post(
@@ -527,6 +530,152 @@ def analizar_ia(request, pk):
             pass  # Regla no creada aún en el panel
 
     return Response(resultado)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def analizar_local(request, pk):
+    """
+    Como analizar_ia pero acepta el frame como archivo multipart (campo 'file').
+    Usado por la cámara local del dispositivo Flutter — no captura por RTSP.
+    POST /api/camaras/<id>/analizar_local/
+    Multipart: file (JPEG), umbral_merodeo (opcional)
+    """
+    try:
+        camara = Camara.objects.prefetch_related("zonas_roi").get(pk=pk)
+    except Camara.DoesNotExist:
+        return Response({'error': 'Cámara no encontrada'}, status=404)
+
+    archivo = request.FILES.get('file')
+    if not archivo:
+        return Response({'error': 'Campo "file" requerido'}, status=400)
+
+    try:
+        import cv2
+        datos = np.frombuffer(archivo.read(), dtype=np.uint8)
+        frame = cv2.imdecode(datos, cv2.IMREAD_COLOR)
+        if frame is None:
+            return Response({'error': 'Frame inválido'}, status=400)
+        h, w = frame.shape[:2]
+        if w > 640:
+            frame = cv2.resize(frame, (640, int(h * 640 / w)))
+        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        if not ok:
+            return Response({'error': 'Error al codificar frame'}, status=500)
+        _ultimo_frame_cache[camara.camara_id] = buf.tobytes()
+    except ImportError:
+        return Response({'error': 'OpenCV no disponible'}, status=503)
+
+    zonas = [
+        {'nombre': z.tipo_zona, 'puntos': z.poligono_coordenadas, 'normalizado': True}
+        for z in camara.zonas_roi.all()
+    ]
+    umbral_merodeo = request.data.get('umbral_merodeo', 15)
+
+    try:
+        resp = req_ext.post(
+            f"{SIVIC_IA_URL}/api/analizar",
+            files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
+            data={'camara_id': camara.camara_id, 'zonas_json': json.dumps(zonas), 'umbral_merodeo': umbral_merodeo},
+            timeout=5,
+        )
+        try:
+            resultado = resp.json()
+        except Exception:
+            return Response({'error': f'Microservicio devolvió respuesta inválida (HTTP {resp.status_code})'}, status=502)
+    except req_ext.exceptions.ConnectionError:
+        return Response({'error': 'Microservicio IA no disponible (puerto 8002)'}, status=503)
+    except req_ext.exceptions.Timeout:
+        return Response({'error': 'Microservicio IA no respondió en 5s'}, status=504)
+
+    # Conteo y nivel
+    _raw_personas    = resultado.get('raw', {}).get('personas', [])
+    _conteo_personas = len(_raw_personas)
+    _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
+    resultado['conteo_personas'] = _conteo_personas
+    resultado['nivel']           = _nivel
+
+    _MAPA_ALERTAS = {
+        'zona_restringida_persona': 'persona_zona_restringida',
+        'merodeo':                  'merodeo',
+        'vehiculo_zona_restringida':'vehiculo_no_autorizado',
+        'personas_peleando':        'personas_peleando',
+        'caida_persona':            'caida_persona',
+        'intrusion_nocturna':       'intrusion_nocturna',
+        'acceso_fuera_horario':     'acceso_fuera_horario',
+    }
+
+    from reglas.models import ReglaInfraccion
+    from eventos.services_ia import registrar_deteccion
+    import time as _time
+
+    alertas = resultado.get('alertas', [])
+
+    imagen_evidencia_url = ""
+    if alertas:
+        supa_url = settings.SUPABASE_URL.rstrip('/')
+        supa_key = settings.SUPABASE_SERVICE_KEY.strip()
+        ts = int(_time.time())
+        ev_path = f"evidencias/{camara.camara_id}/{ts}.jpg"
+        try:
+            up = req_ext.post(
+                f"{supa_url}/storage/v1/object/sivic-planos/{ev_path}",
+                headers={'Authorization': f'Bearer {supa_key}', 'apikey': supa_key,
+                         'Content-Type': 'image/jpeg', 'x-upsert': 'true'},
+                data=buf.tobytes(), timeout=15,
+            )
+            if up.status_code in (200, 201):
+                imagen_evidencia_url = f"{supa_url}/storage/v1/object/public/sivic-planos/{ev_path}"
+        except Exception:
+            pass
+
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    channel_layer = get_channel_layer()
+
+    for alerta in alertas:
+        nombre_regla = _MAPA_ALERTAS.get(alerta)
+        if not nombre_regla:
+            continue
+        try:
+            regla = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
+            det   = next((d for d in resultado.get('detalle_alertas', []) if d.get('tipo') == alerta), {})
+            confianza = det.get('confianza', 0.80)
+            evento    = registrar_deteccion(camara.camara_id, regla.regla_id, confianza, imagen_evidencia_url)
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    "sivic_alertas",
+                    {
+                        "type":            "nueva_alerta",
+                        "evento_id":       evento.evento_id,
+                        "camara_nombre":   camara.nombre_ubicacion,
+                        "regla_nombre":    regla.nombre_regla,
+                        "confianza_ia":    confianza,
+                        "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                        "imagen_url":      imagen_evidencia_url,
+                        "conteo_personas": _conteo_personas,
+                        "nivel":           _nivel,
+                    }
+                )
+        except ReglaInfraccion.DoesNotExist:
+            pass
+
+    return Response(resultado)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ultimo_frame(request, pk):
+    """
+    Devuelve el último frame JPEG recibido de una cámara local.
+    GET /api/camaras/<id>/ultimo_frame/?token=<jwt>
+    Usado por Angular para mostrar la imagen del celular en tiempo real.
+    """
+    frame_bytes = _ultimo_frame_cache.get(int(pk))
+    if frame_bytes is None:
+        return Response({'error': 'Sin frame disponible aún'}, status=404)
+    from django.http import HttpResponse
+    return HttpResponse(frame_bytes, content_type='image/jpeg')
 
 
 # ─────────────────────────────────────────────

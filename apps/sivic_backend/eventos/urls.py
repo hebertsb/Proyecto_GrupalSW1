@@ -6,6 +6,8 @@ router = DefaultRouter()
 router.register("", views.EventoViewSet, basename="evento")
 
 urlpatterns = [
-    path("inferencia/", views.inferencia_ia),
+    path("inferencia/",            views.inferencia_ia),
+    path("reportes/resumen/",      views.reportes_resumen,      name="reportes-resumen"),
+    path("reportes/consulta/",     views.consulta_ia_reportes,  name="reportes-consulta"),
     path("", include(router.urls)),
 ]

@@ -132,6 +132,7 @@ YOLO_MODEL_PATH = env("YOLO_MODEL_PATH", default="")
 # Obtener en: Supabase dashboard → Settings → API → service_role key
 SUPABASE_URL         = env("SUPABASE_URL", default="https://hrhjzoaaytioxdjttztc.supabase.co")
 SUPABASE_SERVICE_KEY = env("SUPABASE_SERVICE_KEY", default="")
+GROQ_API_KEY         = env("GROQ_API_KEY", default="")
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
