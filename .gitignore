@@ -89,6 +89,8 @@ datasets/
 !entrenamientopersona/modelo_pelea.pth
 !entrenamientopersona/modelo_condominio_final.pt
 !entrenamientopersona/modelo_vehiculo_estacionamiento.pth
+!entrenamientopersona/modelo_correa_nuevo.pt
+!entrenamientopersona/modelo_heces.pt
 
 # Archivos temporales / notebooks sueltos
 last_image.jpg
