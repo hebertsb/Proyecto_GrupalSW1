@@ -4,6 +4,9 @@
 *.onnx
 *.weights
 models/
+!modelo_pelea.pth
+!modelo_condominio_final.pt
+!modelo_vehiculo_estacionamiento.pth
 
 # Datos / datasets
 data/
