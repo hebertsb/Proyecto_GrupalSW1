@@ -39,7 +39,7 @@ heces_detector:                Optional[HecesDetector]                    = None
 
 @app.on_event("startup")
 async def startup():
-    global perro_correa_detector, heces_detector
+    global persona_detector, vehiculo_detector, pelea_classifier, vehiculo_estacionamiento_cls, perro_correa_detector, heces_detector
     persona_detector  = PersonaDetector()
     vehiculo_detector = VehiculoDetector()
     
