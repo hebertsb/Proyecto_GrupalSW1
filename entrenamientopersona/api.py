@@ -16,6 +16,7 @@ from reglas.merodeo import limpiar_camara, verificar_merodeo
 from reglas.zona_restringida import verificar_zonas
 from reglas.caida import verificar_caida
 from reglas.horario import verificar_intrusion_nocturna, verificar_acceso_fuera_horario
+from reglas.mascotas import verificar_mascota_suelta
 
 app = FastAPI(title="SIVIC — Detección Personas y Vehículos")
 router = APIRouter()
@@ -226,41 +227,16 @@ async def analizar(
             })
 
     # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
-    for p in perros:
-
-        es_suelto = p["suelto"]
-        if not es_suelto:
-            # El modelo detectó "dog leash" (con correa).
-            # Fallback Geométrico: Buscamos si hay un humano cerca (incluso agachado con conf=0.15)
-            personas_baja_conf = persona_detector.detect(img, conf_min=0.15) if persona_detector else personas
-            
-            dueno_cerca = False
-            px1, py1, px2, py2 = p["bbox"]
-            pcx, pcy = (px1 + px2) / 2, (py1 + py2) / 2
-            
-            for h in personas_baja_conf:
-                hx1, hy1, hx2, hy2 = h["bbox"]
-                hcx, hcy = (hx1 + hx2) / 2, (hy1 + hy2) / 2
-                
-                # Distancia euclidiana
-                dist = ((hcx - pcx)**2 + (hcy - pcy)**2)**0.5
-                
-                # Umbral dinámico: si la persona está a una distancia menor al 45% de la diagonal de la pantalla
-                umbral = ((alto**2 + ancho**2)**0.5) * 0.45
-                if dist < umbral:
-                    dueno_cerca = True
-                    break
-
-            if not dueno_cerca:
-                es_suelto = True  # Hay humanos, pero están muy lejos. ¡El perro está suelto!
-                p["suelto"] = True
-
-        if p["suelto"]:
-            alertas_tipos.append("perro_sin_correa")
-            alertas_detalle.append({
-                "tipo": "perro_sin_correa",
-                "confianza": p["confianza"]
-            })
+    
+    # Extraemos personas con baja confianza para no perder dueños agachados recogiendo heces
+    personas_baja_conf = persona_detector.detect(img, conf_min=0.15) if persona_detector else personas
+    
+    for ms in verificar_mascota_suelta(perros, personas_baja_conf, alto, ancho):
+        alertas_tipos.append("perro_sin_correa")
+        alertas_detalle.append({
+            "tipo": "perro_sin_correa",
+            "confianza": ms["confianza"]
+        })
             
     for h in heces:
         alertas_tipos.append("heces_detectadas")
