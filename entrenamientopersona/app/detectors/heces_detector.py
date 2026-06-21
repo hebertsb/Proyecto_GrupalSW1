@@ -12,7 +12,7 @@ class HecesDetector:
             print(f"⚠️ Error al cargar HecesDetector: {e}")
             self.model = None
 
-    def detect(self, img, conf_min: float = 0.50) -> list:
+    def detect(self, img, conf_min: float = 0.25) -> list:
         if self.model is None:
             return []
         results = self.model(img, verbose=False)
@@ -31,4 +31,5 @@ class HecesDetector:
                     "confianza": round(conf, 3),
                     "clase": nombre_clase
                 })
+                print(f"[YOLO Heces] Detectó: {nombre_clase} ({conf:.2f})")
         return heces
