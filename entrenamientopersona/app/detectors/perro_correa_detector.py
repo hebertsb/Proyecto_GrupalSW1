@@ -32,7 +32,7 @@ class PerroCorreaDetector:
                 clase_idx = int(box.cls[0])
                 nombre_clase = self.model.names[clase_idx]
                 
-                if nombre_clase == "Dog-without-Leash" and conf >= 0.40:
+                if nombre_clase == "Dog-without-Leash" and conf >= 0.15:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
                 elif nombre_clase == "dog leash" and conf >= 0.05:
@@ -57,7 +57,7 @@ class PerroCorreaDetector:
                 scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
                 dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
                 if dist < max(cw, ch) * 1.5:
-                    if s["confianza"] > c["confianza"] + 0.40:
+                    if s["confianza"] > c["confianza"] + 0.20:
                         es_alucinacion = True
                         break
             
