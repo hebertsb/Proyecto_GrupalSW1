@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+
+  # ── Django backend (ASGI / WebSocket) ─────────────────────────────────────
+  django:
+    build:
+      context: ./apps/sivic_backend
+    env_file: ./apps/sivic_backend/.env
+    expose:
+      - "8000"
+    restart: unless-stopped
+    depends_on:
+      - fa-personas
+      - fa-perros
+
+  # ── FastAPI personas + vehículos ───────────────────────────────────────────
+  fa-personas:
+    build:
+      context: ./entrenamientopersona
+    env_file: ./entrenamientopersona/.env
+    volumes:
+      - ./modelos:/app/modelos     # carpeta con los .pt/.pth
+    environment:
+      PERSONA_MODEL_PATH:          /app/modelos/modelo_condominio_final.pt
+      PELEA_MODEL_PATH:            /app/modelos/modelo_pelea.pth
+      VEHICULO_EST_MODEL_PATH:     /app/modelos/modelo_vehiculo_estacionamiento.pth
+      DJANGO_BACKEND_URL:          http://django:8000
+    expose:
+      - "8002"
+    restart: unless-stopped
+
+  # ── FastAPI perros + heces ─────────────────────────────────────────────────
+  fa-perros:
+    build:
+      context: ./entrenamientoperro
+    env_file: ./entrenamientoperro/.env
+    volumes:
+      - ./modelos:/app/modelos
+    environment:
+      DOGS_RESNET_PATH:   /app/modelos/resnet50_dogs.pth
+      DOGS_CLASSES_PATH:  /app/modelos/classes.json
+      DOGS_IMAGES_DIR:    /app/modelos/stanford_dogs
+      DJANGO_BACKEND_URL: http://django:8000
+    expose:
+      - "8003"
+    restart: unless-stopped
+
+  # ── Nginx reverse proxy + Angular ─────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend-dist:/var/www/html:ro
+    depends_on:
+      - django
+    restart: unless-stopped
