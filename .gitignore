@@ -97,3 +97,7 @@ untitled*.py
 !entrenamientopersona/entrenamiento_pelea.ipynb
 !entrenamientopersona/entrenamiento_vehiculo.ipynb
 
+# Docker — carpetas de deploy (no van al repo)
+modelos/
+frontend-dist/
+
