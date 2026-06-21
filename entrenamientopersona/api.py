@@ -231,10 +231,28 @@ async def analizar(
         es_suelto = p["suelto"]
         if not es_suelto:
             # El modelo detectó "dog leash" (con correa).
-            # Fallback: Verificamos si hay alguna persona (dueño) cerca, incluso con confianza muy baja (ej: dueño agachado).
+            # Fallback Geométrico: Buscamos si hay un humano cerca (incluso agachado con conf=0.15)
             personas_baja_conf = persona_detector.detect(img, conf_min=0.15) if persona_detector else personas
-            if len(personas_baja_conf) == 0:
-                es_suelto = True  # No hay ningún humano en la imagen, por lo que el perro está suelto aunque traiga correa.
+            
+            dueno_cerca = False
+            px1, py1, px2, py2 = p["bbox"]
+            pcx, pcy = (px1 + px2) / 2, (py1 + py2) / 2
+            
+            for h in personas_baja_conf:
+                hx1, hy1, hx2, hy2 = h["bbox"]
+                hcx, hcy = (hx1 + hx2) / 2, (hy1 + hy2) / 2
+                
+                # Distancia euclidiana
+                dist = ((hcx - pcx)**2 + (hcy - pcy)**2)**0.5
+                
+                # Umbral dinámico: si la persona está a una distancia menor al 45% de la diagonal de la pantalla
+                umbral = ((alto**2 + ancho**2)**0.5) * 0.45
+                if dist < umbral:
+                    dueno_cerca = True
+                    break
+
+            if not dueno_cerca:
+                es_suelto = True  # Hay humanos, pero están muy lejos. ¡El perro está suelto!
                 p["suelto"] = True
 
         if p["suelto"]:
