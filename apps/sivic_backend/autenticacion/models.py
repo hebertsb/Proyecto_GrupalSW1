@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Usuario(models.Model):
-    ROL_CHOICES = [("admin", "Admin"), ("guardia", "Guardia")]
+    ROL_CHOICES = [("superadmin", "Super Admin"), ("admin", "Admin"), ("guardia", "Guardia")]
 
     usuario_id    = models.AutoField(primary_key=True)
     nombre        = models.CharField(max_length=100)
