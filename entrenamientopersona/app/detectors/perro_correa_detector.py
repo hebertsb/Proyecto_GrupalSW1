@@ -42,40 +42,59 @@ class PerroCorreaDetector:
         # Heurística: Si detecta una correa (dog leash) en la imagen, anulamos las cajas de perro suelto
         # que se superpongan o estén muy cerca, porque el modelo de Roboflow suele confundirse y predecir ambas.
         perros_finales = []
+        correas_validas = []
+        sueltos_validos = []
         
-        # Primero agregamos los perros con correa (la correa manda)
+        # 1. Filtrar correas que son alucinaciones (cuando el "suelto" es muchísimo más seguro)
         for c in cajas_correa:
+            es_alucinacion = False
+            cx1, cy1, cx2, cy2 = c["bbox"]
+            ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
+            cw, ch = cx2 - cx1, cy2 - cy1
+            
+            for s in cajas_sueltos:
+                sx1, sy1, sx2, sy2 = s["bbox"]
+                scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
+                dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
+                if dist < max(cw, ch) * 1.5:
+                    if s["confianza"] > c["confianza"] + 0.40:
+                        es_alucinacion = True
+                        break
+            
+            if not es_alucinacion:
+                correas_validas.append(c)
+                
+        # 2. Filtrar perros sueltos que en realidad tienen correa válida
+        for s in cajas_sueltos:
+            es_falso_suelto = False
+            sx1, sy1, sx2, sy2 = s["bbox"]
+            scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
+            sw, sh = sx2 - sx1, sy2 - sy1
+            
+            for c in correas_validas:
+                cx1, cy1, cx2, cy2 = c["bbox"]
+                ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
+                dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
+                if dist < max(sw, sh) * 1.5:
+                    es_falso_suelto = True
+                    break
+                    
+            if not es_falso_suelto:
+                sueltos_validos.append(s)
+                
+        # 3. Construir la lista final
+        for c in correas_validas:
             perros_finales.append({
                 "bbox": c["bbox"],
                 "confianza": round(c["confianza"], 3),
                 "suelto": False
             })
             
-        # Luego evaluamos los sueltos. Si se cruzan con un perro con correa, los ignoramos.
-        for s in cajas_sueltos:
-            sx1, sy1, sx2, sy2 = s["bbox"]
-            scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
+        for s in sueltos_validos:
+            perros_finales.append({
+                "bbox": s["bbox"],
+                "confianza": round(s["confianza"], 3),
+                "suelto": True
+            })
             
-            es_falso_suelto = False
-            for c in cajas_correa:
-                cx1, cy1, cx2, cy2 = c["bbox"]
-                ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
-                dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
-                
-                # Mejoramos la métrica para evitar problemas de resolución:
-                # Si los cuadros simplemente se intersectan o están medianamente cerca, es el mismo perro.
-                # Calculamos si hay intersección o si los centros están a menos de max(w, h).
-                cw = cx2 - cx1
-                ch = cy2 - cy1
-                if dist < max(cw, ch) * 1.5:
-                    es_falso_suelto = True
-                    break
-                    
-            if not es_falso_suelto:
-                perros_finales.append({
-                    "bbox": s["bbox"],
-                    "confianza": round(s["confianza"], 3),
-                    "suelto": True
-                })
-                    
         return perros_finales
