@@ -62,9 +62,12 @@ class PerroCorreaDetector:
                 ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
                 dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
                 
-                # Si el centro del perro "suelto" está muy cerca del centro de un perro "con correa" (ej. 150px)
-                # significa que es el mismo perro y el modelo predijo ambas clases. La correa gana.
-                if dist < 200:
+                # Mejoramos la métrica para evitar problemas de resolución:
+                # Si los cuadros simplemente se intersectan o están medianamente cerca, es el mismo perro.
+                # Calculamos si hay intersección o si los centros están a menos de max(w, h).
+                cw = cx2 - cx1
+                ch = cy2 - cy1
+                if dist < max(cw, ch) * 1.5:
                     es_falso_suelto = True
                     break
                     
