@@ -91,6 +91,8 @@ datasets/
 !entrenamientopersona/modelo_vehiculo_estacionamiento.pth
 
 # Archivos temporales / notebooks sueltos
+last_image.jpg
+entrenamientopersona/last_image.jpg
 untitled*.py
 *.ipynb
 !entrenamientopersona/entrenamiento_condominio.ipynb

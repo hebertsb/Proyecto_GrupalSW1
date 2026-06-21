@@ -238,6 +238,7 @@ async def analizar(
         # Clasificar raza
         raza = "Perro"
         raza = "Perro"
+        raza = "Perro"
         if perro_raza_classifier:
             x1, y1, x2, y2 = p["bbox"]
             crop = img[max(0, y1):min(alto, y2), max(0, x1):min(ancho, x2)]
@@ -245,15 +246,15 @@ async def analizar(
             raza = raza_data["raza"]
             p["raza"] = raza
 
-        # LÓGICA RÁPIDA Y EFECTIVA PARA TUS ESCENARIOS:
-        # 1. Si el perro no tiene correa, ya viene con suelto=True.
-        # 2. Si tiene correa (suelto=False) pero no hay NINGUNA persona visible en toda la cámara,
-        #    asumimos que el perro se escapó arrastrando la correa.
-        if not p["suelto"]:
-            if len(personas) == 0:
-                p["suelto"] = True  # ¡Se escapó con todo y correa!
+        es_suelto = p["suelto"]
+        if not es_suelto:
+            # El modelo detectó "dog leash" (con correa).
+            # Fallback: Verificamos si hay alguna persona (dueño) cerca, incluso con confianza muy baja (ej: dueño agachado).
+            personas_baja_conf = persona_detector.detect(img, conf_min=0.15) if persona_detector else personas
+            if len(personas_baja_conf) == 0:
+                es_suelto = True  # No hay ningún humano en la imagen, por lo que el perro está suelto aunque traiga correa.
+                p["suelto"] = True
 
-        # Alerta sin correa
         if p["suelto"]:
             alertas_tipos.append("perro_sin_correa")
             alertas_detalle.append({

@@ -684,7 +684,7 @@ def ultimo_frame(request, pk):
     """
     frame_bytes = _ultimo_frame_cache.get(int(pk))
     if frame_bytes is None:
-        return Response({'error': 'Sin frame disponible aún'}, status=404)
+        return Response(status=204)
     from django.http import HttpResponse
     return HttpResponse(frame_bytes, content_type='image/jpeg')
 
