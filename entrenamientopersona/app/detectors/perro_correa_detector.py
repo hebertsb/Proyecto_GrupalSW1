@@ -16,9 +16,11 @@ class PerroCorreaDetector:
         if self.model is None:
             return []
         
-        # Hacemos la inferencia con NMS agnóstico (evita doble caja para el mismo perro)
-        results = self.model(img, verbose=False, agnostic_nms=True, iou=0.45)
-        perros_correa = []
+        # SIN agnostic_nms para permitir que ambas clases (suelto y con correa) se detecten simultáneamente si el modelo duda.
+        results = self.model(img, verbose=False, iou=0.45)
+        
+        cajas_sueltos = []
+        cajas_correa = []
         
         for r in results:
             for box in r.boxes:
@@ -32,19 +34,45 @@ class PerroCorreaDetector:
                 
                 print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                 
-                # Clase 1: Perro SIN correa (Alerta)
                 if nombre_clase == "Dog-without-Leash":
-                    perros_correa.append({
-                        "bbox": [x1, y1, x2, y2],
-                        "confianza": round(conf, 3),
-                        "suelto": True
-                    })
-                # Clase 2: Perro CON correa (Sin alerta)
+                    cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
                 elif nombre_clase == "dog leash":
-                    perros_correa.append({
-                        "bbox": [x1, y1, x2, y2],
-                        "confianza": round(conf, 3),
-                        "suelto": False
-                    })
+                    cajas_correa.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
+
+        # Heurística: Si detecta una correa (dog leash) en la imagen, anulamos las cajas de perro suelto
+        # que se superpongan o estén muy cerca, porque el modelo de Roboflow suele confundirse y predecir ambas.
+        perros_finales = []
+        
+        # Primero agregamos los perros con correa (la correa manda)
+        for c in cajas_correa:
+            perros_finales.append({
+                "bbox": c["bbox"],
+                "confianza": round(c["confianza"], 3),
+                "suelto": False
+            })
+            
+        # Luego evaluamos los sueltos. Si se cruzan con un perro con correa, los ignoramos.
+        for s in cajas_sueltos:
+            sx1, sy1, sx2, sy2 = s["bbox"]
+            scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
+            
+            es_falso_suelto = False
+            for c in cajas_correa:
+                cx1, cy1, cx2, cy2 = c["bbox"]
+                ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
+                dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
+                
+                # Si el centro del perro "suelto" está muy cerca del centro de un perro "con correa" (ej. 150px)
+                # significa que es el mismo perro y el modelo predijo ambas clases. La correa gana.
+                if dist < 200:
+                    es_falso_suelto = True
+                    break
                     
-        return perros_correa
+            if not es_falso_suelto:
+                perros_finales.append({
+                    "bbox": s["bbox"],
+                    "confianza": round(s["confianza"], 3),
+                    "suelto": True
+                })
+                    
+        return perros_finales
