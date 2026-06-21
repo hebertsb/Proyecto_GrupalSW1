@@ -315,10 +315,11 @@ def analizar_frame_persona(request):
     """
     Analiza una imagen/frame con el microservicio entrenamientopersona.
     Usado para modo archivo (video/imagen subida por el usuario).
-    Body: multipart/form-data con campo 'imagen'.
+    Body: multipart/form-data con campo 'imagen' y opcionalmente 'camara_id'.
     """
     archivo = request.FILES.get('imagen')
     modo_filtro = request.data.get('modo_filtro', 'todo')
+    camara_id_param = request.data.get('camara_id')
     if not archivo:
         return Response({'error': 'Campo "imagen" requerido'}, status=400)
 
@@ -337,18 +338,117 @@ def analizar_frame_persona(request):
     except ImportError:
         return Response({'error': 'OpenCV no disponible'}, status=503)
 
+    # Intentar obtener la cámara si se proporcionó camara_id
+    camara = None
+    if camara_id_param:
+        try:
+            camara = Camara.objects.prefetch_related("zonas_roi").get(pk=int(camara_id_param))
+        except (Camara.DoesNotExist, ValueError):
+            pass
+
+    zonas = []
+    if camara:
+        zonas = [{'nombre': z.tipo_zona, 'puntos': z.poligono_coordenadas, 'normalizado': True}
+                 for z in camara.zonas_roi.all()]
+
     try:
         resp = req_ext.post(
             f"{SIVIC_IA_URL}/api/analizar",
             files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
-            data={'camara_id': 0, 'umbral_merodeo': 999, 'modo_filtro': modo_filtro},
+            data={'camara_id': camara.camara_id if camara else 0,
+                  'zonas_json': json.dumps(zonas),
+                  'umbral_merodeo': 999,
+                  'modo_filtro': modo_filtro},
             timeout=5,
         )
-        return Response(resp.json())
+        try:
+            resultado = resp.json()
+        except Exception:
+            return Response({'error': f'Microservicio devolvió respuesta inválida (HTTP {resp.status_code})'}, status=502)
     except req_ext.exceptions.ConnectionError:
         return Response({'error': 'Microservicio IA no disponible'}, status=503)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+    # Conteo y nivel
+    _personas_det = [d for d in resultado.get('detecciones', []) if d.get('clase') in ('persona', 'person')]
+    _conteo_personas = len(_personas_det)
+    _nivel_ia = resultado.get('nivel')
+    if _nivel_ia in ('critico', 'sospechoso', 'normal'):
+        _nivel = _nivel_ia
+    else:
+        _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
+    resultado['conteo_personas'] = _conteo_personas
+    resultado['nivel']           = _nivel
+
+    # Guardar eventos y broadcast WebSocket solo si se conoce la cámara
+    if camara:
+        _MAPA_ALERTAS = {
+            'zona_restringida_persona': 'persona_zona_restringida',
+            'merodeo':                  'merodeo',
+            'vehiculo_zona_restringida':'vehiculo_no_autorizado',
+            'personas_peleando':        'personas_peleando',
+            'caida_persona':            'caida_persona',
+            'intrusion_nocturna':       'intrusion_nocturna',
+            'acceso_fuera_horario':     'acceso_fuera_horario',
+            'vehiculo_mal_estacionado': 'vehiculo_mal_estacionado',
+            'perro_sin_correa':         'mascota_sin_correa',
+            'heces_detectadas':         'heces_mascota',
+        }
+        from reglas.models import ReglaInfraccion
+        from eventos.services_ia import registrar_deteccion
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        import time as _time
+
+        alertas = resultado.get('alertas', [])
+        imagen_evidencia_url = ""
+        if alertas:
+            supa_url = settings.SUPABASE_URL.rstrip('/')
+            supa_key = settings.SUPABASE_SERVICE_KEY.strip()
+            ts = int(_time.time())
+            ev_path = f"evidencias/{camara.camara_id}/{ts}.jpg"
+            try:
+                up = req_ext.post(
+                    f"{supa_url}/storage/v1/object/sivic-planos/{ev_path}",
+                    headers={'Authorization': f'Bearer {supa_key}', 'apikey': supa_key,
+                             'Content-Type': 'image/jpeg', 'x-upsert': 'true'},
+                    data=buf.tobytes(), timeout=15,
+                )
+                if up.status_code in (200, 201):
+                    imagen_evidencia_url = f"{supa_url}/storage/v1/object/public/sivic-planos/{ev_path}"
+            except Exception:
+                pass
+
+        channel_layer = get_channel_layer()
+        for alerta in alertas:
+            nombre_regla = _MAPA_ALERTAS.get(alerta)
+            if not nombre_regla:
+                continue
+            try:
+                regla = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
+                det   = next((d for d in resultado.get('detalle_alertas', []) if d.get('tipo') == alerta), {})
+                confianza = det.get('confianza', 0.80)
+                evento = registrar_deteccion(camara.camara_id, regla.regla_id, confianza, imagen_evidencia_url)
+                if channel_layer:
+                    async_to_sync(channel_layer.group_send)(
+                        "sivic_alertas",
+                        {
+                            "type":            "nueva_alerta",
+                            "evento_id":       evento.evento_id,
+                            "camara_nombre":   camara.nombre_ubicacion,
+                            "regla_nombre":    regla.nombre_regla,
+                            "confianza_ia":    confianza,
+                            "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                            "imagen_url":      imagen_evidencia_url,
+                            "conteo_personas": _conteo_personas,
+                            "nivel":           _nivel,
+                        }
+                    )
+            except ReglaInfraccion.DoesNotExist:
+                pass
+
+    return Response(resultado)
 
 
 @api_view(['POST'])
