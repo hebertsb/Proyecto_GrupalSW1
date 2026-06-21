@@ -1,83 +1,65 @@
 import os
+import cv2
+import numpy as np
 from ultralytics import YOLO
 
 MODEL_PATH = os.getenv("PERRO_CORREA_MODEL_PATH", "modelo_correa_nuevo.pt")
+BASE_MODEL_PATH = "yolov8n.pt"
 
 class PerroCorreaDetector:
     def __init__(self, model_path: str = MODEL_PATH):
         try:
-            self.model = YOLO(model_path)
-            print("✅ PerroCorreaDetector (Nuevo) listo")
+            # Usamos YOLO puro + Heurística de proximidad de persona
+            self.model_base = YOLO(BASE_MODEL_PATH)
+            print("✅ PerroCorreaDetector (Proximity Heuristics) listo")
         except Exception as e:
-            print(f"⚠️ Error al cargar PerroCorreaDetector: {e}")
-            self.model = None
+            print(f"⚠️ Error al cargar PerroCorreaDetector base: {e}")
+            self.model_base = None
 
-    def detect(self, img, conf_min: float = 0.40) -> list:
-        if self.model is None:
+    def detect(self, img, conf_min: float = 0.30) -> list:
+        if self.model_base is None:
             return []
+            
+        results = self.model_base(img, verbose=False, conf=conf_min)
         
-        # SIN agnostic_nms para permitir que ambas clases (suelto y con correa) se detecten simultáneamente si el modelo duda.
-        results = self.model(img, verbose=False, iou=0.45)
-        
-        cajas_sueltos = []
-        cajas_correa = []
+        perros_finales = []
+        cajas_perros = []
+        cajas_personas = []
         
         for r in results:
             for box in r.boxes:
-                conf = float(box.conf[0])
-                if conf < 0.05:
-                    continue
-                    
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 clase_idx = int(box.cls[0])
-                nombre_clase = self.model.names[clase_idx]
+                conf = float(box.conf[0])
                 
-                if nombre_clase in ["Dog-without-Leash", "Dangerous_Dogs"] and conf >= 0.05:
-                    print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
-                    cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
-                elif nombre_clase == "dog leash" and conf >= 0.05:
-                    print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
-                    cajas_correa.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
-
-        perros_finales = []
-        correas_validas = []
-        
-        # 1. Filtrar correas que son alucinaciones (cuando el modelo duda y también predice suelto)
-        for c in cajas_correa:
-            es_alucinacion = False
-            cx1, cy1, cx2, cy2 = c["bbox"]
-            ccx, ccy = (cx1 + cx2)/2, (cy1 + cy2)/2
-            cw, ch = cx2 - cx1, cy2 - cy1
+                if clase_idx == 16: # Perro
+                    cajas_perros.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
+                elif clase_idx == 0: # Persona
+                    cajas_personas.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
+                    
+        h, w = img.shape[:2]
+                    
+        for p in cajas_perros:
+            x1, y1, x2, y2 = p["bbox"]
+            px, py = (x1 + x2)/2, (y1 + y2)/2
             
-            for s in cajas_sueltos:
-                sx1, sy1, sx2, sy2 = s["bbox"]
-                scx, scy = (sx1 + sx2)/2, (sy1 + sy2)/2
-                dist = ((scx - ccx)**2 + (scy - ccy)**2)**0.5
-                # Si ambas cajas apuntan al mismo perro, le damos prioridad absoluta a "Suelto"
-                # porque el modelo está muy sesgado a predecir correas falsas.
-                if dist < max(cw, ch) * 1.5:
-                    es_alucinacion = True
+            tiene_correa = False
+            
+            # Distancia a persona (si hay una persona muy cerca, asumimos que tiene correa)
+            for per in cajas_personas:
+                perx, pery = (per["bbox"][0] + per["bbox"][2])/2, (per["bbox"][1] + per["bbox"][3])/2
+                dist = ((px - perx)**2 + (py - pery)**2)**0.5
+                if dist < 250: # Dueño muy cerca
+                    tiene_correa = True
+                    print("[Logica] Dueño cerca del perro, asumiendo correa.")
                     break
+                                
+            es_suelto = not tiene_correa
             
-            if not es_alucinacion:
-                correas_validas.append(c)
-                
-        # 2. Los sueltos siempre son válidos si pasaron el filtro inicial
-        sueltos_validos = cajas_sueltos
-                
-        # 3. Construir la lista final
-        for c in correas_validas:
             perros_finales.append({
-                "bbox": c["bbox"],
-                "confianza": round(c["confianza"], 3),
-                "suelto": False
-            })
-            
-        for s in sueltos_validos:
-            perros_finales.append({
-                "bbox": s["bbox"],
-                "confianza": round(s["confianza"], 3),
-                "suelto": True
+                "bbox": p["bbox"],
+                "confianza": round(p["confianza"], 3),
+                "suelto": es_suelto
             })
             
         return perros_finales
