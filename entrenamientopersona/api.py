@@ -9,6 +9,7 @@ from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from app.detectors.persona_detector import PersonaDetector
 from app.detectors.vehiculo_detector import VehiculoDetector
 from app.classifiers.pelea_classifier import PeleaClassifier
+from app.classifiers.vehiculo_estacionamiento_classifier import VehiculoEstacionamientoClassifier
 from reglas.merodeo import limpiar_camara, verificar_merodeo
 from reglas.zona_restringida import verificar_zonas
 from reglas.caida import verificar_caida
@@ -25,14 +26,15 @@ REGLA_MERODEO       = int(os.getenv("REGLA_MERODEO",       "4"))
 REGLA_VEHICULO_ZONA = int(os.getenv("REGLA_VEHICULO_ZONA", "6"))
 
 # ── Detectores / clasificadores globales ─────────────────────────────────────
-persona_detector:   Optional[PersonaDetector]   = None
-vehiculo_detector:  Optional[VehiculoDetector]  = None
-pelea_classifier:   Optional[PeleaClassifier]   = None
+persona_detector:              Optional[PersonaDetector]                  = None
+vehiculo_detector:             Optional[VehiculoDetector]                 = None
+pelea_classifier:              Optional[PeleaClassifier]                  = None
+vehiculo_estacionamiento_cls:  Optional[VehiculoEstacionamientoClassifier] = None
 
 
 @app.on_event("startup")
 async def startup():
-    global persona_detector, vehiculo_detector, pelea_classifier
+    global persona_detector, vehiculo_detector, pelea_classifier, vehiculo_estacionamiento_cls
     persona_detector  = PersonaDetector()
     vehiculo_detector = VehiculoDetector()
     try:
@@ -40,6 +42,11 @@ async def startup():
         print("[SIVIC] PeleaClassifier cargado")
     except FileNotFoundError as e:
         print(f"[SIVIC] PeleaClassifier no disponible: {e}")
+    try:
+        vehiculo_estacionamiento_cls = VehiculoEstacionamientoClassifier()
+        print("[SIVIC] VehiculoEstacionamientoClassifier cargado")
+    except FileNotFoundError as e:
+        print(f"[SIVIC] VehiculoEstacionamientoClassifier no disponible: {e}")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -119,85 +126,88 @@ async def analizar(
     alto, ancho = img.shape[:2]
     zonas = json.loads(zonas_json) if zonas_json else []
 
-    # ── Detectar ─────────────────────────────────────────────────────────────
+    # ── Detectar ambas clases siempre (independiente) ────────────────────────
     personas  = persona_detector.detect(img)
     vehiculos = vehiculo_detector.detect(img)
-
-    n_personas  = len(personas)
-    n_vehiculos = len(vehiculos)
-
-    # Clase dominante: la que más aparece en el frame
-    # Si empate o solo personas → modo personas
-    modo = "vehiculos" if n_vehiculos > n_personas else "personas"
 
     alertas_tipos   = []
     alertas_detalle = []
 
-    if modo == "personas":
-        # 1. Personas en zona restringida
-        if zonas and personas:
-            for v in verificar_zonas(personas, zonas, alto, ancho):
-                alertas_tipos.append("zona_restringida_persona")
-                alertas_detalle.append({"tipo": "zona_restringida_persona", **v})
+    # ── Alertas de PERSONAS ───────────────────────────────────────────────────
 
-        # 2. Merodeo
-        if personas:
-            for m in verificar_merodeo(personas, camara_id, umbral_merodeo):
-                alertas_tipos.append("merodeo")
-                alertas_detalle.append({"tipo": "merodeo", **m})
+    # 1. Personas en zona restringida
+    if zonas and personas:
+        for v in verificar_zonas(personas, zonas, alto, ancho):
+            alertas_tipos.append("zona_restringida_persona")
+            alertas_detalle.append({"tipo": "zona_restringida_persona", **v})
 
-        # 3. Pelea
-        if pelea_classifier and n_personas >= 2:
-            resultado_pelea = pelea_classifier.clasificar(img)
-            if resultado_pelea["pelea"]:
-                alertas_tipos.append("personas_peleando")
-                alertas_detalle.append({
-                    "tipo": "personas_peleando",
-                    "confianza": resultado_pelea["confianza"],
-                })
+    # 2. Merodeo
+    if personas:
+        for m in verificar_merodeo(personas, camara_id, umbral_merodeo):
+            alertas_tipos.append("merodeo")
+            alertas_detalle.append({"tipo": "merodeo", **m})
 
-        # 4. Caída de persona
-        for c in verificar_caida(personas):
-            alertas_tipos.append("caida_persona")
-            alertas_detalle.append({"tipo": "caida_persona", **c})
+    # 3. Pelea (mínimo 2 personas)
+    if pelea_classifier and len(personas) >= 2:
+        resultado_pelea = pelea_classifier.clasificar(img)
+        if resultado_pelea["pelea"]:
+            alertas_tipos.append("personas_peleando")
+            alertas_detalle.append({
+                "tipo":      "personas_peleando",
+                "confianza": resultado_pelea["confianza"],
+            })
 
-        # 5. Intrusión nocturna
-        for n in verificar_intrusion_nocturna(personas):
-            alertas_tipos.append("intrusion_nocturna")
-            alertas_detalle.append({"tipo": "intrusion_nocturna", **n})
+    # 4. Caída de persona
+    for c in verificar_caida(personas):
+        alertas_tipos.append("caida_persona")
+        alertas_detalle.append({"tipo": "caida_persona", **c})
 
-        # 6. Acceso fuera de horario (zona tipo 'horario_restringido')
-        for h in verificar_acceso_fuera_horario(personas, zonas, alto, ancho):
-            alertas_tipos.append("acceso_fuera_horario")
-            alertas_detalle.append({"tipo": "acceso_fuera_horario", **h})
+    # 5. Intrusión nocturna
+    for n in verificar_intrusion_nocturna(personas):
+        alertas_tipos.append("intrusion_nocturna")
+        alertas_detalle.append({"tipo": "intrusion_nocturna", **n})
 
-    else:  # modo vehiculos
-        # 4. Vehículos en zona restringida
-        if zonas and vehiculos:
-            for v in verificar_zonas(vehiculos, zonas, alto, ancho):
-                alertas_tipos.append("vehiculo_zona_restringida")
-                alertas_detalle.append({"tipo": "vehiculo_zona_restringida", **v})
+    # 6. Acceso fuera de horario
+    for h in verificar_acceso_fuera_horario(personas, zonas, alto, ancho):
+        alertas_tipos.append("acceso_fuera_horario")
+        alertas_detalle.append({"tipo": "acceso_fuera_horario", **h})
 
-    # ── Respuesta: solo detecciones de la clase dominante ────────────────────
-    if modo == "personas":
-        detecciones = _normalizar(personas, alto, ancho, "persona")
-    else:
-        detecciones = _normalizar(
-            vehiculos, alto, ancho, "vehiculo",
-            extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")},
-        )
+    # ── Alertas de VEHÍCULOS ──────────────────────────────────────────────────
 
+    # 7. Vehículo en zona restringida
+    if zonas and vehiculos:
+        for v in verificar_zonas(vehiculos, zonas, alto, ancho):
+            alertas_tipos.append("vehiculo_zona_restringida")
+            alertas_detalle.append({"tipo": "vehiculo_zona_restringida", **v})
+
+    # 8. Vehículo mal estacionado (requiere modelo entrenado)
+    if vehiculo_estacionamiento_cls and vehiculos:
+        resultado_est = vehiculo_estacionamiento_cls.clasificar(img)
+        if resultado_est["infraccion"]:
+            alertas_tipos.append("vehiculo_mal_estacionado")
+            alertas_detalle.append({
+                "tipo":      "vehiculo_mal_estacionado",
+                "confianza": resultado_est["confianza"],
+                "clase":     resultado_est["clase"],
+            })
+
+    # ── Respuesta ─────────────────────────────────────────────────────────────
     return {
         "alertas":         alertas_tipos,
         "detalle_alertas": alertas_detalle,
-        "detecciones":     detecciones,
-        "modo":            modo,
+        "detecciones":     _normalizar(personas, alto, ancho, "persona") +
+                           _normalizar(vehiculos, alto, ancho, "vehiculo",
+                                       extra_fn=lambda b: {"tipo_vehiculo": b.get("tipo", "auto")}),
+        "conteo": {
+            "personas":  len(personas),
+            "vehiculos": len(vehiculos),
+        },
         "raw": {"personas": personas, "vehiculos": vehiculos},
     }
 
 
-@router.delete("/merodeo/limpiar/{camara_id}")
-async def limpiar_historial_merodeo(camara_id: int):
+@router.delete("/historial/limpiar/{camara_id}")
+async def limpiar_historial(camara_id: int):
     limpiar_camara(camara_id)
     return {"ok": True, "camara_id": camara_id}
 

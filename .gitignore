@@ -88,10 +88,12 @@ datasets/
 *.onnx
 !entrenamientopersona/modelo_pelea.pth
 !entrenamientopersona/modelo_condominio_final.pt
+!entrenamientopersona/modelo_vehiculo_estacionamiento.pth
 
 # Archivos temporales / notebooks sueltos
 untitled*.py
 *.ipynb
 !entrenamientopersona/entrenamiento_condominio.ipynb
 !entrenamientopersona/entrenamiento_pelea.ipynb
+!entrenamientopersona/entrenamiento_vehiculo.ipynb
 

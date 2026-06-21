@@ -5,3 +5,5 @@ opencv-python
 numpy
 requests
 python-multipart
+torch>=2.0
+torchvision>=0.15

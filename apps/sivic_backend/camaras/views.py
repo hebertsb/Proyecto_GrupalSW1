@@ -454,13 +454,14 @@ def analizar_ia(request, pk):
     # Mapear alertas a regla_id buscando por nombre en la tabla reglas_infraccion
     # El admin crea las reglas con estos nombres_regla en el panel web
     _MAPA_ALERTAS = {
-        'zona_restringida_persona': 'persona_zona_restringida',
-        'merodeo':                  'merodeo',
-        'vehiculo_zona_restringida':'vehiculo_no_autorizado',
-        'personas_peleando':        'personas_peleando',
-        'caida_persona':            'caida_persona',
-        'intrusion_nocturna':       'intrusion_nocturna',
-        'acceso_fuera_horario':     'acceso_fuera_horario',
+        'zona_restringida_persona':  'persona_zona_restringida',
+        'merodeo':                   'merodeo',
+        'vehiculo_zona_restringida': 'vehiculo_no_autorizado',
+        'personas_peleando':         'personas_peleando',
+        'caida_persona':             'caida_persona',
+        'intrusion_nocturna':        'intrusion_nocturna',
+        'acceso_fuera_horario':      'acceso_fuera_horario',
+        'vehiculo_mal_estacionado':  'vehiculo_mal_estacionado',
     }
 
     from reglas.models import ReglaInfraccion
