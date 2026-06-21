@@ -34,7 +34,6 @@ pelea_classifier:              Optional[PeleaClassifier]                  = None
 vehiculo_estacionamiento_cls:  Optional[VehiculoEstacionamientoClassifier] = None
 perro_correa_detector:         Optional[PerroCorreaDetector]              = None
 heces_detector:                Optional[HecesDetector]                    = None
-perro_raza_classifier:         Optional[PerroRazaClassifier]              = None
 
 
 @app.on_event("startup")
