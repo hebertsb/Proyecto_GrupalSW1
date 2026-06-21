@@ -452,7 +452,13 @@ def analizar_ia(request, pk):
     # Conteo de personas y clasificación de nivel
     _personas_det = [d for d in resultado.get('detecciones', []) if d.get('clase') in ('persona', 'person')]
     _conteo_personas = len(_personas_det)
-    _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
+    # Usar nivel de fa-personas (basado en alertas: pelea/caida = critico) si está presente;
+    # solo calcular por conteo si no viene nivel del microservicio
+    _nivel_ia = resultado.get('nivel')
+    if _nivel_ia in ('critico', 'sospechoso', 'normal'):
+        _nivel = _nivel_ia
+    else:
+        _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
     resultado['conteo_personas'] = _conteo_personas
     resultado['nivel']           = _nivel
 
@@ -600,7 +606,11 @@ def analizar_local(request, pk):
     # Conteo y nivel
     _raw_personas    = resultado.get('raw', {}).get('personas', [])
     _conteo_personas = len(_raw_personas)
-    _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
+    _nivel_ia = resultado.get('nivel')
+    if _nivel_ia in ('critico', 'sospechoso', 'normal'):
+        _nivel = _nivel_ia
+    else:
+        _nivel = 'critico' if _conteo_personas >= 6 else 'sospechoso' if _conteo_personas >= 3 else 'normal'
     resultado['conteo_personas'] = _conteo_personas
     resultado['nivel']           = _nivel
 
