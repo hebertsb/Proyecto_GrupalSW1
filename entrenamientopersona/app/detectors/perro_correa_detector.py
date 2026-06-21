@@ -32,7 +32,7 @@ class PerroCorreaDetector:
                 clase_idx = int(box.cls[0])
                 nombre_clase = self.model.names[clase_idx]
                 
-                if nombre_clase == "Dog-without-Leash" and conf >= 0.15:
+                if nombre_clase in ["Dog-without-Leash", "Dangerous_Dogs"] and conf >= 0.15:
                     print(f"[YOLO Correa] Detectó: {nombre_clase} ({conf:.2f})")
                     cajas_sueltos.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
                 elif nombre_clase == "dog leash" and conf >= 0.05:
