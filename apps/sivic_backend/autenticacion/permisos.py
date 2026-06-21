@@ -2,12 +2,17 @@ from rest_framework.permissions import BasePermission
 
 
 def filtrar_por_condominio(qs, request, campo="condominio_id"):
-    """Restringe el queryset al condominio del usuario cuando es admin o guardia."""
+    """
+    Restringe el queryset al condominio del usuario cuando es admin o guardia.
+    Si el admin no tiene condominio asignado, retorna queryset vacío (no expone datos de otros).
+    Superadmin ve todo sin filtro.
+    """
     rol = getattr(request.user, "rol", None)
     if rol in ("admin", "guardia"):
         cid = getattr(request.user, "condominio_id", None)
         if cid:
             return qs.filter(**{campo: cid})
+        return qs.none()   # admin sin condominio → vista vacía
     return qs
 
 

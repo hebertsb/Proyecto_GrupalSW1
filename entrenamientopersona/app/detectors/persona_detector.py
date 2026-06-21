@@ -10,8 +10,13 @@ class PersonaDetector:
             model_path = os.getenv("PERSONA_MODEL_PATH", "modelo_condominio_final.pt")
             if not __import__("pathlib").Path(model_path).exists():
                 model_path = "yolov8n.pt"
-        self.model = YOLO(model_path)
-        print(f"✅ PersonaDetector listo ({model_path} clase 0)")
+        try:
+            self.model = YOLO(model_path)
+            print(f"✅ PersonaDetector listo ({model_path} clase 0)")
+        except Exception:
+            print(f"⚠️  No se pudo cargar {model_path}, usando yolov8n.pt")
+            self.model = YOLO("yolov8n.pt")
+            print("✅ PersonaDetector listo (yolov8n.pt clase 0)")
 
     def detect(self, img, conf_min: float = 0.35) -> list:
         results = self.model(img, verbose=False)

@@ -32,5 +32,5 @@ class SuscripcionSerializer(serializers.ModelSerializer):
             "suscripcion_id", "condominio", "condominio_nombre",
             "plan", "plan_nombre",
             "fecha_inicio", "is_activo",
-            "stripe_estado", "periodo_actual_fin",
+            "stripe_estado", "stripe_suscripcion_id", "periodo_actual_fin",
         ]
