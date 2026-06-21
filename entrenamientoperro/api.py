@@ -11,12 +11,14 @@ from app.detectors.poop_detector import PoopDetector
 app = FastAPI(title="FastAPI en Django")
 router = APIRouter()
 
+import os
+
 model = None
 resnet_classifier = None
 clasificador_real = False
 poop_detector = None
 LAST_DETECTED_BREED = None
-IMAGES_DIR = Path(r"D:\SW1\entrenamientoperro\data\raw\stanford_dogs\Images")
+IMAGES_DIR = Path(os.getenv("DOGS_IMAGES_DIR", "data/raw/stanford_dogs/Images"))
 
 
 
@@ -27,8 +29,8 @@ async def startup_event():
     model = YOLO("yolov8n.pt")
     
     # Cargar el clasificador ResNet50
-    model_path = Path(r"D:\SW1\entrenamientoperro\models\resnet50_dogs.pth")
-    classes_path = Path(r"D:\SW1\entrenamientoperro\models\classes.json")
+    model_path   = Path(os.getenv("DOGS_RESNET_PATH",   "models/resnet50_dogs.pth"))
+    classes_path = Path(os.getenv("DOGS_CLASSES_PATH",  "models/classes.json"))
     
     if model_path.exists() and classes_path.exists():
         try:
@@ -255,7 +257,6 @@ async def analizar(imagen: UploadFile = File(None), file: UploadFile = File(None
         raza = random.choice(razas_predefinidas) + " (Simulado)"
             
     # 3. Enviar notificaciones/webhooks a Django
-    import os
     import requests
     DJANGO_BACKEND_URL = os.getenv("DJANGO_BACKEND_URL", "http://127.0.0.1:8001")
     DEFAULT_CAMARA_ID = int(os.getenv("DEFAULT_CAMARA_ID", 9))

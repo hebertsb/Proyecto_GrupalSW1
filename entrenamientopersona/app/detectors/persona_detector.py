@@ -4,9 +4,14 @@ from ultralytics import YOLO
 class PersonaDetector:
     CLASE_ID = 0  # 'person' en COCO
 
-    def __init__(self, model_path: str = "yolov8n.pt"):
+    def __init__(self, model_path: str = None):
+        import os
+        if model_path is None:
+            model_path = os.getenv("PERSONA_MODEL_PATH", "modelo_condominio_final.pt")
+            if not __import__("pathlib").Path(model_path).exists():
+                model_path = "yolov8n.pt"
         self.model = YOLO(model_path)
-        print("✅ PersonaDetector listo (yolov8n clase 0)")
+        print(f"✅ PersonaDetector listo ({model_path} clase 0)")
 
     def detect(self, img, conf_min: float = 0.35) -> list:
         results = self.model(img, verbose=False)
