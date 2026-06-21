@@ -247,6 +247,67 @@ Abrir en **Enterprise Architect**:
 
 ---
 
+## 10. Arranque completo del sistema
+
+El sistema tiene **4 procesos** que deben correr en paralelo. Abrir una terminal por cada uno.
+
+> **Antes de arrancar:** ejecutar `ipconfig` para obtener la IP local del PC y actualizarla en:
+> - `apps/sivic_backend/.env` → `ALLOWED_HOSTS`
+> - `Grupal_FrontendSW1/src/environments/environment.ts` → `apiUrl` y `wsUrl`
+> - `Grupal_FlutterSW1/lib/nucleo/red/cliente_http.dart` → `_urlBase` y `urlIaServidor`
+> - `Grupal_FlutterSW1/lib/nucleo/red/websocket_servicio.dart` → `_wsBase`
+
+### Terminal 1 — Backend Django (API REST + WebSocket)
+
+```bash
+cd apps/sivic_backend
+.venv\Scripts\activate
+python -m uvicorn core.asgi:application --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 5
+```
+
+### Terminal 2 — Servidor IA (FastAPI + YOLO + modelos)
+
+```bash
+cd entrenamientopersona
+python -m uvicorn api:app --host 0.0.0.0 --port 8002
+```
+
+### Terminal 3 — Frontend Angular
+
+```bash
+cd Grupal_FrontendSW1
+npx ng serve --host 0.0.0.0
+```
+
+Acceder en `http://localhost:4200`
+
+### Terminal 4 — App Flutter (celular conectado por USB)
+
+```bash
+cd Grupal_FlutterSW1
+flutter run
+```
+
+### Orden de arranque
+
+```
+Terminal 1 (Django)  →  Terminal 2 (IA)  →  Terminal 3 (Angular)  →  Terminal 4 (Flutter)
+```
+
+### Cámara local en Flutter
+
+Para usar la cámara del celular como cámara de vigilancia en la app, crear una cámara en el panel web con:
+
+```
+nombre_ubicacion: "Entrada Principal"
+rtsp_url:         local://
+is_active:        true
+```
+
+Flutter detecta la URL `local://` y abre la cámara trasera del dispositivo directamente en el recuadro del panel, enviando frames cada 2s al servidor IA para detección en tiempo real.
+
+---
+
 ## Colaboradores
 
 - Hebert Suárez Burgos
