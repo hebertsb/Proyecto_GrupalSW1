@@ -31,6 +31,7 @@ class ZonaRoi(models.Model):
     camara               = models.ForeignKey(Camara, on_delete=models.CASCADE, db_column="camara_id", related_name="zonas_roi")
     poligono_coordenadas = models.JSONField()
     tipo_zona            = models.CharField(max_length=50, choices=TIPO_CHOICES)
+    configuracion        = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = "zonas_roi"
