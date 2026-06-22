@@ -89,6 +89,7 @@ datasets/
 !entrenamientopersona/modelo_pelea.pth
 !entrenamientopersona/modelo_condominio_final.pt
 !entrenamientopersona/modelo_vehiculo_estacionamiento.pth
+!entrenamientopersona/modelo_vehiculo_estacionamiento_v2.pth
 !entrenamientopersona/modelo_correa_nuevo.pt
 !entrenamientopersona/modelo_heces.pt
 
@@ -100,6 +101,7 @@ untitled*.py
 !entrenamientopersona/entrenamiento_condominio.ipynb
 !entrenamientopersona/entrenamiento_pelea.ipynb
 !entrenamientopersona/entrenamiento_vehiculo.ipynb
+!entrenamientopersona/entrenamiento_vehiculo_v2.ipynb
 
 # Docker — carpetas de deploy (no van al repo)
 modelos/

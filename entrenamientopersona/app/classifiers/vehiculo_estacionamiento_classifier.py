@@ -7,7 +7,9 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 
-MODEL_PATH = os.getenv("VEHICULO_EST_MODEL_PATH", "modelo_vehiculo_estacionamiento.pth")
+# v2 usa EfficientNet-B0; v1 usaba ResNet-18. Se detecta automáticamente por nombre de archivo.
+MODEL_PATH_V2 = os.getenv("VEHICULO_EST_MODEL_PATH", "modelo_vehiculo_estacionamiento_v2.pth")
+MODEL_PATH_V1 = "modelo_vehiculo_estacionamiento.pth"
 
 _transform = transforms.Compose([
     transforms.ToPILImage(),
@@ -20,23 +22,45 @@ _transform = transforms.Compose([
 _CLASES = ["infraccion", "normal"]
 
 
+def _construir_modelo_v2():
+    from torchvision.models import efficientnet_b0
+    m = efficientnet_b0(weights=None)
+    m.classifier = nn.Sequential(nn.Dropout(p=0.3, inplace=True), nn.Linear(m.classifier[1].in_features, 2))
+    return m
+
+def _construir_modelo_v1():
+    m = models.resnet18(weights=None)
+    m.fc = nn.Linear(m.fc.in_features, 2)
+    return m
+
+
 class VehiculoEstacionamientoClassifier:
-    def __init__(self, model_path: str = MODEL_PATH, umbral: float = 0.75):
+    def __init__(self, model_path: str = None, umbral: float = 0.75):
         self.umbral = umbral
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        modelo = models.resnet18(weights=None)
-        modelo.fc = nn.Linear(modelo.fc.in_features, 2)
+        # Auto-detectar modelo disponible: v2 (EfficientNet) tiene prioridad
+        if model_path is None:
+            if Path(MODEL_PATH_V2).exists():
+                model_path = MODEL_PATH_V2
+            elif Path(MODEL_PATH_V1).exists():
+                model_path = MODEL_PATH_V1
+            else:
+                raise FileNotFoundError(
+                    f"No se encontró modelo de estacionamiento. "
+                    f"Buscado: {MODEL_PATH_V2}, {MODEL_PATH_V1}"
+                )
 
         ruta = Path(model_path)
         if not ruta.exists():
-            raise FileNotFoundError(
-                f"modelo_vehiculo_estacionamiento.pth no encontrado en {ruta.resolve()}"
-            )
+            raise FileNotFoundError(f"Modelo no encontrado en {ruta.resolve()}")
 
+        es_v2 = "v2" in ruta.name
+        modelo = _construir_modelo_v2() if es_v2 else _construir_modelo_v1()
         modelo.load_state_dict(torch.load(str(ruta), map_location=self.device))
         modelo.eval()
         self.modelo = modelo.to(self.device)
+        print(f"✅ VehiculoEstacionamientoClassifier listo ({'EfficientNet-B0 v2' if es_v2 else 'ResNet-18 v1'}: {ruta.name})")
 
     def clasificar(self, img_bgr: np.ndarray) -> dict:
         """

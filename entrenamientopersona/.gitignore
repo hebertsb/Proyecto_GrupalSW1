@@ -7,6 +7,7 @@ models/
 !modelo_pelea.pth
 !modelo_condominio_final.pt
 !modelo_vehiculo_estacionamiento.pth
+!modelo_vehiculo_estacionamiento_v2.pth
 
 # Datos / datasets
 data/
