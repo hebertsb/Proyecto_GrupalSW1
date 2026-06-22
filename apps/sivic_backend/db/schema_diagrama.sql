@@ -47,9 +47,11 @@ CREATE TABLE zonas_roi (
     roi_id               SERIAL PRIMARY KEY,
     camara_id            INT REFERENCES camaras(camara_id),
     poligono_coordenadas JSONB NOT NULL,
-    tipo_zona            VARCHAR(50) NOT NULL
+    tipo_zona            VARCHAR(50) NOT NULL,
     -- Valores: zona_prohibida | horario_restringido | perimetro | parqueo | area_comun | jardin
     -- Constraint tipo_zona_check eliminado: ALTER TABLE zonas_roi DROP CONSTRAINT zonas_roi_tipo_zona_check
+    configuracion        JSONB NOT NULL DEFAULT '{}'
+    -- Para horario_restringido: {"hora_inicio": "HH:MM", "hora_fin": "HH:MM"}
 );
 
 CREATE TABLE reglas_infraccion (
