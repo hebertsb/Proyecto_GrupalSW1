@@ -48,7 +48,7 @@ class EventoViewSet(viewsets.ModelViewSet):
         qs = filtrar_por_condominio(qs, self.request, campo="camara__condominio_id")
         estado    = self.request.query_params.get("estado")
         camara_id = self.request.query_params.get("camara")
-        dias      = int(self.request.query_params.get("dias", 7))
+        dias      = int(self.request.query_params.get("dias", 3))
         if estado:
             qs = qs.filter(estado=estado)
         if camara_id:
