@@ -42,15 +42,19 @@ class EventoViewSet(viewsets.ModelViewSet):
     http_method_names  = ["get", "patch", "head", "options"]
 
     def get_queryset(self):
+        from django.utils import timezone
+        import datetime
         qs = Evento.objects.select_related("camara", "regla", "atendido_por").all()
         qs = filtrar_por_condominio(qs, self.request, campo="camara__condominio_id")
         estado    = self.request.query_params.get("estado")
         camara_id = self.request.query_params.get("camara")
+        dias      = int(self.request.query_params.get("dias", 7))
         if estado:
             qs = qs.filter(estado=estado)
         if camara_id:
             qs = qs.filter(camara_id=camara_id)
-        return qs
+        desde = timezone.now() - datetime.timedelta(days=dias)
+        return qs.filter(timestamp_deteccion__gte=desde)[:500]
 
     @extend_schema(
         tags=["Eventos"],
