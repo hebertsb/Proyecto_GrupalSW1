@@ -12,7 +12,6 @@ class LogAuditoriaViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = LogAuditoria.objects.select_related("usuario").all()
-        # Admin solo ve logs de usuarios de su propio condominio
         if self.request.user.rol == "admin" and self.request.user.condominio_id:
             qs = qs.filter(usuario__condominio_id=self.request.user.condominio_id)
         usuario_id     = self.request.query_params.get("usuario")
@@ -21,4 +20,4 @@ class LogAuditoriaViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(usuario_id=usuario_id)
         if tabla_afectada:
             qs = qs.filter(tabla_afectada=tabla_afectada)
-        return qs
+        return qs[:200]

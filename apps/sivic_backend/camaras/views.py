@@ -348,7 +348,7 @@ def analizar_frame_persona(request):
 
     zonas = []
     if camara:
-        zonas = [{'nombre': z.tipo_zona, 'puntos': z.poligono_coordenadas, 'normalizado': True}
+        zonas = [{'nombre': z.tipo_zona, 'puntos': z.poligono_coordenadas, 'normalizado': True, 'configuracion': z.configuracion}
                  for z in camara.zonas_roi.all()]
 
     try:
@@ -516,9 +516,10 @@ def analizar_ia(request, pk):
     # Preparar zonas ROI para el microservicio
     zonas = [
         {
-            'nombre':     z.tipo_zona,
-            'puntos':     z.poligono_coordenadas,
-            'normalizado': True,
+            'nombre':        z.tipo_zona,
+            'puntos':        z.poligono_coordenadas,
+            'normalizado':   True,
+            'configuracion': z.configuracion,
         }
         for z in camara.zonas_roi.all()
     ]

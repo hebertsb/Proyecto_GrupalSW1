@@ -34,8 +34,9 @@ def verificar_acceso_fuera_horario(detecciones: list, zonas: list,
                                     hora_permitida_inicio: dtime = dtime(8,  0),
                                     hora_permitida_fin:    dtime = dtime(14, 0)) -> list:
     """
-    Alerta si hay personas en zonas marcadas como 'horario_restringido'
-    fuera del horario permitido.
+    Alerta si hay personas en zonas 'horario_restringido' fuera del horario
+    permitido. Cada zona puede definir su propio horario en configuracion
+    {hora_inicio: "HH:MM", hora_fin: "HH:MM"}; si no, usa los defaults.
     """
     if not detecciones or not zonas:
         return []
@@ -45,20 +46,24 @@ def verificar_acceso_fuera_horario(detecciones: list, zonas: list,
         return []
 
     ahora = _hora_actual()
-    en_horario = hora_permitida_inicio <= ahora <= hora_permitida_fin
-    if en_horario:
-        return []
-
-    # Hay zonas de horario restringido y estamos fuera del horario permitido
     import cv2
     import numpy as np
     alertas = []
     for d in detecciones:
         x1, y1, x2, y2 = d["bbox"]
-        # Centro inferior de la persona
         cx = int((x1 + x2) / 2)
         cy = int(y2)
         for zona in zonas_horario:
+            cfg = zona.get("configuracion") or {}
+            try:
+                h_ini = dtime(*map(int, cfg["hora_inicio"].split(":"))) if "hora_inicio" in cfg else hora_permitida_inicio
+                h_fin = dtime(*map(int, cfg["hora_fin"].split(":")))    if "hora_fin"    in cfg else hora_permitida_fin
+            except (ValueError, AttributeError):
+                h_ini, h_fin = hora_permitida_inicio, hora_permitida_fin
+
+            if h_ini <= ahora <= h_fin:
+                continue  # dentro del horario permitido para esta zona
+
             puntos = np.array(zona["puntos"], dtype=np.float32)
             if zona.get("normalizado", False):
                 puntos[:, 0] *= ancho

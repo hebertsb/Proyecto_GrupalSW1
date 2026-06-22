@@ -8,7 +8,7 @@ class ZonaRoiSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = ZonaRoi
-        fields = ["roi_id", "camara", "poligono_coordenadas", "tipo_zona"]
+        fields = ["roi_id", "camara", "poligono_coordenadas", "tipo_zona", "configuracion"]
 
 
 class CamaraSerializer(serializers.ModelSerializer):
