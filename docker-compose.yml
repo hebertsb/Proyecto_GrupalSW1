@@ -19,13 +19,13 @@ services:
     build:
       context: ./entrenamientopersona
     volumes:
-      - ./modelos:/app/modelos     # carpeta con los .pt/.pth
+      - ./entrenamientopersona/modelo_vehiculo_estacionamiento_v2.pth:/app/modelo_vehiculo_estacionamiento_v2.pth:ro
     environment:
-      PERSONA_MODEL_PATH:          /app/modelos/modelo_condominio_final.pt
-      PELEA_MODEL_PATH:            /app/modelos/modelo_pelea.pth
-      VEHICULO_EST_MODEL_PATH:     /app/modelos/modelo_vehiculo_estacionamiento.pth
-      PERRO_CORREA_MODEL_PATH:     /app/modelos/modelo_correa_nuevo.pt
-      HECES_MODEL_PATH:            /app/modelos/modelo_heces.pt
+      PERSONA_MODEL_PATH:          /app/modelo_condominio_final.pt
+      PELEA_MODEL_PATH:            /app/modelo_pelea.pth
+      VEHICULO_EST_MODEL_PATH:     /app/modelo_vehiculo_estacionamiento_v2.pth
+      PERRO_CORREA_MODEL_PATH:     /app/modelo_correa_nuevo.pt
+      HECES_MODEL_PATH:            /app/modelo_heces.pt
       DJANGO_BACKEND_URL:          http://django:8000
     expose:
       - "8002"
