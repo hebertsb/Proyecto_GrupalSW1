@@ -20,6 +20,26 @@ SIVIC_IA_URL = os.getenv("SIVIC_IA_URL", "http://127.0.0.1:8002")
 # Cache en memoria del último frame recibido por cámara local (camara_id → bytes JPEG)
 _ultimo_frame_cache: dict = {}
 
+# Cooldown de alertas: evita crear eventos duplicados en rafagas rápidas.
+# Clave: (camara_id, nombre_regla) → timestamp último evento (time.time())
+import time as _time_module
+_alerta_cooldown: dict = {}
+_COOLDOWN_SEGUNDOS = 30  # mínimo 30s entre eventos del mismo tipo por cámara
+
+# Mapa unificado: nombre alerta fa-personas → nombre_regla en tabla reglas_infraccion
+_MAPA_ALERTAS_GLOBAL = {
+    'zona_restringida_persona':  'persona_zona_restringida',
+    'merodeo':                   'merodeo',
+    'vehiculo_zona_restringida': 'vehiculo_no_autorizado',
+    'personas_peleando':         'personas_peleando',
+    'caida_persona':             'caida_persona',
+    'intrusion_nocturna':        'intrusion_nocturna',
+    'acceso_fuera_horario':      'acceso_fuera_horario',
+    'vehiculo_mal_estacionado':  'bloqueo_vehicular',
+    'perro_sin_correa':          'mascota_suelta',
+    'heces_detectadas':          'mascota_suelta',
+}
+
 
 # ─────────────────────────────────────────────
 # ViewSets existentes
@@ -383,37 +403,24 @@ def analizar_frame_persona(request):
 
     # Guardar eventos y broadcast WebSocket solo si se conoce la cámara
     if camara:
-        _MAPA_ALERTAS = {
-            'zona_restringida_persona': 'persona_zona_restringida',
-            'merodeo':                  'merodeo',
-            'vehiculo_zona_restringida':'vehiculo_no_autorizado',
-            'personas_peleando':        'personas_peleando',
-            'caida_persona':            'caida_persona',
-            'intrusion_nocturna':       'intrusion_nocturna',
-            'acceso_fuera_horario':     'acceso_fuera_horario',
-            'vehiculo_mal_estacionado': 'vehiculo_mal_estacionado',
-            'perro_sin_correa':         'mascota_sin_correa',
-            'heces_detectadas':         'heces_mascota',
-        }
         from reglas.models import ReglaInfraccion
         from eventos.services_ia import registrar_deteccion
         from channels.layers import get_channel_layer
         from asgiref.sync import async_to_sync
-        import time as _time
 
         alertas = resultado.get('alertas', [])
         imagen_evidencia_url = ""
         if alertas:
             supa_url = settings.SUPABASE_URL.rstrip('/')
             supa_key = settings.SUPABASE_SERVICE_KEY.strip()
-            ts = int(_time.time())
+            ts = int(_time_module.time())
             ev_path = f"evidencias/{camara.camara_id}/{ts}.jpg"
             try:
                 up = req_ext.post(
                     f"{supa_url}/storage/v1/object/sivic-planos/{ev_path}",
                     headers={'Authorization': f'Bearer {supa_key}', 'apikey': supa_key,
                              'Content-Type': 'image/jpeg', 'x-upsert': 'true'},
-                    data=buf.tobytes(), timeout=15,
+                    data=buf.tobytes(), timeout=8,
                 )
                 if up.status_code in (200, 201):
                     imagen_evidencia_url = f"{supa_url}/storage/v1/object/public/sivic-planos/{ev_path}"
@@ -421,32 +428,44 @@ def analizar_frame_persona(request):
                 pass
 
         channel_layer = get_channel_layer()
+        ahora = _time_module.time()
         for alerta in alertas:
-            nombre_regla = _MAPA_ALERTAS.get(alerta)
+            nombre_regla = _MAPA_ALERTAS_GLOBAL.get(alerta)
             if not nombre_regla:
+                print(f"[SIVIC] Alerta sin regla mapeada: {alerta}")
                 continue
+            clave_cd = (camara.camara_id, nombre_regla)
+            if ahora - _alerta_cooldown.get(clave_cd, 0) < _COOLDOWN_SEGUNDOS:
+                continue
+            _alerta_cooldown[clave_cd] = ahora
             try:
                 regla = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
                 det   = next((d for d in resultado.get('detalle_alertas', []) if d.get('tipo') == alerta), {})
                 confianza = det.get('confianza', 0.80)
                 evento = registrar_deteccion(camara.camara_id, regla.regla_id, confianza, imagen_evidencia_url)
                 if channel_layer:
-                    async_to_sync(channel_layer.group_send)(
-                        "sivic_alertas",
-                        {
-                            "type":            "nueva_alerta",
-                            "evento_id":       evento.evento_id,
-                            "camara_nombre":   camara.nombre_ubicacion,
-                            "regla_nombre":    regla.nombre_regla,
-                            "confianza_ia":    confianza,
-                            "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
-                            "imagen_url":      imagen_evidencia_url,
-                            "conteo_personas": _conteo_personas,
-                            "nivel":           _nivel,
-                        }
-                    )
+                    try:
+                        async_to_sync(channel_layer.group_send)(
+                            "sivic_alertas",
+                            {
+                                "type":            "nueva_alerta",
+                                "evento_id":       evento.evento_id,
+                                "camara_nombre":   camara.nombre_ubicacion,
+                                "regla_nombre":    regla.nombre_regla,
+                                "confianza_ia":    confianza,
+                                "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                                "imagen_url":      imagen_evidencia_url,
+                                "conteo_personas": _conteo_personas,
+                                "nivel":           _nivel,
+                            }
+                        )
+                        print(f"[SIVIC] WS enviado: {nombre_regla} cam={camara.camara_id}")
+                    except Exception as ws_err:
+                        print(f"[SIVIC] Error WS group_send: {ws_err}")
             except ReglaInfraccion.DoesNotExist:
-                pass
+                print(f"[SIVIC] Regla no existe en DB: '{nombre_regla}' (alerta: {alerta})")
+            except Exception as e:
+                print(f"[SIVIC] Error registrando evento {alerta}: {e}")
 
     return Response(resultado)
 
@@ -563,24 +582,8 @@ def analizar_ia(request, pk):
     resultado['conteo_personas'] = _conteo_personas
     resultado['nivel']           = _nivel
 
-    # Mapear alertas a regla_id buscando por nombre en la tabla reglas_infraccion
-    # El admin crea las reglas con estos nombres_regla en el panel web
-    _MAPA_ALERTAS = {
-        'zona_restringida_persona':  'persona_zona_restringida',
-        'merodeo':                   'merodeo',
-        'vehiculo_zona_restringida': 'vehiculo_no_autorizado',
-        'personas_peleando':         'personas_peleando',
-        'caida_persona':             'caida_persona',
-        'intrusion_nocturna':        'intrusion_nocturna',
-        'acceso_fuera_horario':      'acceso_fuera_horario',
-        'vehiculo_mal_estacionado':  'vehiculo_mal_estacionado',
-        'perro_sin_correa':          'mascota_sin_correa',
-        'heces_detectadas':          'heces_mascota',
-    }
-
     from reglas.models import ReglaInfraccion
     from eventos.services_ia import registrar_deteccion
-    import time as _time
 
     alertas = resultado.get('alertas', [])
 
@@ -589,7 +592,7 @@ def analizar_ia(request, pk):
     if alertas:
         supa_url = settings.SUPABASE_URL.rstrip('/')
         supa_key = settings.SUPABASE_SERVICE_KEY.strip()
-        ts = int(_time.time())
+        ts = int(_time_module.time())
         ev_path = f"evidencias/{camara.camara_id}/{ts}.jpg"
         try:
             up = req_ext.post(
@@ -601,21 +604,27 @@ def analizar_ia(request, pk):
                     'x-upsert':      'true',
                 },
                 data=buf.tobytes(),
-                timeout=15,
+                timeout=8,
             )
             if up.status_code in (200, 201):
                 imagen_evidencia_url = f"{supa_url}/storage/v1/object/public/sivic-planos/{ev_path}"
         except Exception:
-            pass  # Sin imagen, el evento se registra igual
+            pass
 
     from channels.layers import get_channel_layer
     from asgiref.sync import async_to_sync
     channel_layer = get_channel_layer()
 
+    ahora = _time_module.time()
     for alerta in alertas:
-        nombre_regla = _MAPA_ALERTAS.get(alerta)
+        nombre_regla = _MAPA_ALERTAS_GLOBAL.get(alerta)
         if not nombre_regla:
+            print(f"[SIVIC] Alerta sin regla mapeada: {alerta}")
             continue
+        clave_cd = (camara.camara_id, nombre_regla)
+        if ahora - _alerta_cooldown.get(clave_cd, 0) < _COOLDOWN_SEGUNDOS:
+            continue
+        _alerta_cooldown[clave_cd] = ahora
         try:
             regla  = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
             det    = next(
@@ -625,24 +634,29 @@ def analizar_ia(request, pk):
             confianza = det.get('confianza', 0.80)
             evento    = registrar_deteccion(camara.camara_id, regla.regla_id, confianza, imagen_evidencia_url)
 
-            # Broadcast WebSocket a todos los clientes conectados
             if channel_layer:
-                async_to_sync(channel_layer.group_send)(
-                    "sivic_alertas",
-                    {
-                        "type":          "nueva_alerta",
-                        "evento_id":     evento.evento_id,
-                        "camara_nombre": camara.nombre_ubicacion,
-                        "regla_nombre":  regla.nombre_regla,
-                        "confianza_ia":      confianza,
-                        "timestamp":         evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
-                        "imagen_url":        imagen_evidencia_url,
-                        "conteo_personas":   _conteo_personas,
-                        "nivel":             _nivel,
-                    }
-                )
+                try:
+                    async_to_sync(channel_layer.group_send)(
+                        "sivic_alertas",
+                        {
+                            "type":            "nueva_alerta",
+                            "evento_id":       evento.evento_id,
+                            "camara_nombre":   camara.nombre_ubicacion,
+                            "regla_nombre":    regla.nombre_regla,
+                            "confianza_ia":    confianza,
+                            "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                            "imagen_url":      imagen_evidencia_url,
+                            "conteo_personas": _conteo_personas,
+                            "nivel":           _nivel,
+                        }
+                    )
+                    print(f"[SIVIC] WS enviado: {nombre_regla} cam={camara.camara_id}")
+                except Exception as ws_err:
+                    print(f"[SIVIC] Error WS group_send: {ws_err}")
         except ReglaInfraccion.DoesNotExist:
-            pass  # Regla no creada aún en el panel
+            print(f"[SIVIC] Regla no existe en DB: '{nombre_regla}' (alerta: {alerta})")
+        except Exception as e:
+            print(f"[SIVIC] Error registrando evento {alerta}: {e}")
 
     return Response(resultado)
 
@@ -715,21 +729,8 @@ def analizar_local(request, pk):
     resultado['conteo_personas'] = _conteo_personas
     resultado['nivel']           = _nivel
 
-    _MAPA_ALERTAS = {
-        'zona_restringida_persona': 'persona_zona_restringida',
-        'merodeo':                  'merodeo',
-        'vehiculo_zona_restringida':'vehiculo_no_autorizado',
-        'personas_peleando':        'personas_peleando',
-        'caida_persona':            'caida_persona',
-        'intrusion_nocturna':       'intrusion_nocturna',
-        'acceso_fuera_horario':     'acceso_fuera_horario',
-        'perro_sin_correa':         'mascota_sin_correa',
-        'heces_detectadas':         'heces_mascota',
-    }
-
     from reglas.models import ReglaInfraccion
     from eventos.services_ia import registrar_deteccion
-    import time as _time
 
     alertas = resultado.get('alertas', [])
 
@@ -737,14 +738,14 @@ def analizar_local(request, pk):
     if alertas:
         supa_url = settings.SUPABASE_URL.rstrip('/')
         supa_key = settings.SUPABASE_SERVICE_KEY.strip()
-        ts = int(_time.time())
+        ts = int(_time_module.time())
         ev_path = f"evidencias/{camara.camara_id}/{ts}.jpg"
         try:
             up = req_ext.post(
                 f"{supa_url}/storage/v1/object/sivic-planos/{ev_path}",
                 headers={'Authorization': f'Bearer {supa_key}', 'apikey': supa_key,
                          'Content-Type': 'image/jpeg', 'x-upsert': 'true'},
-                data=buf.tobytes(), timeout=15,
+                data=buf.tobytes(), timeout=8,
             )
             if up.status_code in (200, 201):
                 imagen_evidencia_url = f"{supa_url}/storage/v1/object/public/sivic-planos/{ev_path}"
@@ -755,32 +756,44 @@ def analizar_local(request, pk):
     from asgiref.sync import async_to_sync
     channel_layer = get_channel_layer()
 
+    ahora = _time_module.time()
     for alerta in alertas:
-        nombre_regla = _MAPA_ALERTAS.get(alerta)
+        nombre_regla = _MAPA_ALERTAS_GLOBAL.get(alerta)
         if not nombre_regla:
+            print(f"[SIVIC] Alerta sin regla mapeada: {alerta}")
             continue
+        clave_cd = (camara.camara_id, nombre_regla)
+        if ahora - _alerta_cooldown.get(clave_cd, 0) < _COOLDOWN_SEGUNDOS:
+            continue
+        _alerta_cooldown[clave_cd] = ahora
         try:
             regla = ReglaInfraccion.objects.get(nombre_regla=nombre_regla)
             det   = next((d for d in resultado.get('detalle_alertas', []) if d.get('tipo') == alerta), {})
             confianza = det.get('confianza', 0.80)
             evento    = registrar_deteccion(camara.camara_id, regla.regla_id, confianza, imagen_evidencia_url)
             if channel_layer:
-                async_to_sync(channel_layer.group_send)(
-                    "sivic_alertas",
-                    {
-                        "type":            "nueva_alerta",
-                        "evento_id":       evento.evento_id,
-                        "camara_nombre":   camara.nombre_ubicacion,
-                        "regla_nombre":    regla.nombre_regla,
-                        "confianza_ia":    confianza,
-                        "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
-                        "imagen_url":      imagen_evidencia_url,
-                        "conteo_personas": _conteo_personas,
-                        "nivel":           _nivel,
-                    }
-                )
+                try:
+                    async_to_sync(channel_layer.group_send)(
+                        "sivic_alertas",
+                        {
+                            "type":            "nueva_alerta",
+                            "evento_id":       evento.evento_id,
+                            "camara_nombre":   camara.nombre_ubicacion,
+                            "regla_nombre":    regla.nombre_regla,
+                            "confianza_ia":    confianza,
+                            "timestamp":       evento.timestamp_deteccion.isoformat().replace('+00:00', 'Z') if evento.timestamp_deteccion else "",
+                            "imagen_url":      imagen_evidencia_url,
+                            "conteo_personas": _conteo_personas,
+                            "nivel":           _nivel,
+                        }
+                    )
+                    print(f"[SIVIC] WS enviado: {nombre_regla} cam={camara.camara_id}")
+                except Exception as ws_err:
+                    print(f"[SIVIC] Error WS group_send: {ws_err}")
         except ReglaInfraccion.DoesNotExist:
-            pass
+            print(f"[SIVIC] Regla no existe en DB: '{nombre_regla}' (alerta: {alerta})")
+        except Exception as e:
+            print(f"[SIVIC] Error registrando evento {alerta}: {e}")
 
     return Response(resultado)
 
