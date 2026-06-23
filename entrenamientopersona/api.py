@@ -170,9 +170,13 @@ async def analizar(
     alto, ancho = img.shape[:2]
     zonas = json.loads(zonas_json) if zonas_json else []
 
-    # 1. Personas en zona restringida
-    if zonas and personas:
-        for v in verificar_zonas(personas, zonas, alto, ancho):
+    # Separar zonas por tipo para aplicar reglas correctas
+    zonas_prohibidas   = [z for z in zonas if z.get("nombre") in ("zona_prohibida", "perimetro")]
+    zonas_parqueo      = [z for z in zonas if z.get("nombre") == "parqueo"]
+
+    # 1. Personas en zona restringida (solo zonas prohibidas, no parqueo ni area_comun)
+    if zonas_prohibidas and personas:
+        for v in verificar_zonas(personas, zonas_prohibidas, alto, ancho):
             alertas_tipos.append("zona_restringida_persona")
             alertas_detalle.append({"tipo": "zona_restringida_persona", **v})
 
@@ -209,14 +213,14 @@ async def analizar(
 
     # ── Alertas de VEHÍCULOS ──────────────────────────────────────────────────
 
-    # 7. Vehículo en zona restringida
-    if zonas and vehiculos:
-        for v in verificar_zonas(vehiculos, zonas, alto, ancho):
+    # 7. Vehículo en zona prohibida (NO en parqueo — ahí deben estar)
+    if zonas_prohibidas and vehiculos:
+        for v in verificar_zonas(vehiculos, zonas_prohibidas, alto, ancho):
             alertas_tipos.append("vehiculo_zona_restringida")
             alertas_detalle.append({"tipo": "vehiculo_zona_restringida", **v})
 
-    # 8. Vehículo mal estacionado (requiere modelo entrenado)
-    if vehiculo_estacionamiento_cls and vehiculos:
+    # 8. Vehículo mal estacionado — solo si la cámara tiene zona parqueo
+    if vehiculo_estacionamiento_cls and vehiculos and zonas_parqueo:
         resultado_est = vehiculo_estacionamiento_cls.clasificar(img)
         if resultado_est["infraccion"]:
             alertas_tipos.append("vehiculo_mal_estacionado")
