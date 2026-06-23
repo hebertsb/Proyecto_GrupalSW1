@@ -379,7 +379,7 @@ def analizar_frame_persona(request):
                   'zonas_json': json.dumps(zonas),
                   'umbral_merodeo': 999,
                   'modo_filtro': modo_filtro},
-            timeout=5,
+            timeout=15,
         )
         try:
             resultado = resp.json()
@@ -387,6 +387,8 @@ def analizar_frame_persona(request):
             return Response({'error': f'Microservicio devolvió respuesta inválida (HTTP {resp.status_code})'}, status=502)
     except req_ext.exceptions.ConnectionError:
         return Response({'error': 'Microservicio IA no disponible'}, status=503)
+    except req_ext.exceptions.Timeout:
+        return Response({'error': 'Microservicio IA no respondió en 15s'}, status=504)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
