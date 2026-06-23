@@ -357,6 +357,8 @@ def analizar_frame_persona(request):
             return Response({'error': 'Error al codificar imagen'}, status=500)
     except ImportError:
         return Response({'error': 'OpenCV no disponible'}, status=503)
+    except Exception as e:
+        return Response({'error': f'Error procesando imagen: {e}'}, status=400)
 
     # Intentar obtener la cámara si se proporcionó camara_id
     camara = None
@@ -389,6 +391,8 @@ def analizar_frame_persona(request):
         return Response({'error': 'Microservicio IA no disponible'}, status=503)
     except req_ext.exceptions.Timeout:
         return Response({'error': 'Microservicio IA no respondió en 15s'}, status=504)
+    except req_ext.exceptions.RequestException as e:
+        return Response({'error': f'Error red IA: {e}'}, status=503)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 

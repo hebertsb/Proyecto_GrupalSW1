@@ -54,7 +54,7 @@ async def startup():
     except Exception as e: print(f"[SIVIC] Error HecesDetector: {e}")
     
     try:
-        pelea_classifier = PeleaClassifier(umbral=0.60)
+        pelea_classifier = PeleaClassifier(umbral=0.45)
         print("[SIVIC] PeleaClassifier cargado")
     except FileNotFoundError as e:
         print(f"[SIVIC] PeleaClassifier no disponible: {e}")
