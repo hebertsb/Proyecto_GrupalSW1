@@ -836,7 +836,10 @@ def planos_list(request):
         qs = filtrar_por_condominio(qs, request)
         condominio_id = request.query_params.get('condominio')
         if condominio_id:
-            qs = qs.filter(condominio_id=condominio_id)
+            try:
+                qs = qs.filter(condominio_id=int(condominio_id))
+            except (ValueError, TypeError):
+                return Response([], status=200)
         return Response(PlanoCondominioSerializer(qs, many=True).data)
 
     # POST ─────────────────────────────────────
