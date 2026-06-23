@@ -81,19 +81,6 @@ CREATE TABLE logs_auditoria (
     timestamp_accion TIMESTAMP
 );
 
-CREATE TABLE datasets (
-    dataset_id     SERIAL PRIMARY KEY,
-    nombre         VARCHAR(50) NOT NULL,
-    version_modelo VARCHAR(20) NOT NULL
-);
-
-CREATE TABLE dataset_eventos (
-    dataset_id        INT REFERENCES datasets(dataset_id),
-    evento_id         INT REFERENCES eventos(evento_id),
-    etiqueta_correcta VARCHAR(50),
-    PRIMARY KEY (dataset_id, evento_id)
-);
-
 CREATE TABLE notificaciones (
     notificacion_id SERIAL PRIMARY KEY,
     evento_id       INT REFERENCES eventos(evento_id),

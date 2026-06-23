@@ -171,23 +171,7 @@ CREATE TABLE logs_auditoria (
 );
 
 -- ============================================================
--- 7. DATASETS PARA RE-ENTRENAMIENTO IA
--- ============================================================
-CREATE TABLE datasets (
-    dataset_id     SERIAL PRIMARY KEY,
-    nombre         VARCHAR(50) NOT NULL,
-    version_modelo VARCHAR(20) NOT NULL
-);
-
-CREATE TABLE dataset_eventos (
-    dataset_id      INT NOT NULL REFERENCES datasets(dataset_id) ON DELETE CASCADE,
-    evento_id       INT NOT NULL REFERENCES eventos(evento_id) ON DELETE CASCADE,
-    etiqueta_correcta VARCHAR(50),
-    PRIMARY KEY (dataset_id, evento_id)
-);
-
--- ============================================================
--- 8. PLANO INTERACTIVO DEL CONDOMINIO
+-- 7. PLANO INTERACTIVO DEL CONDOMINIO
 -- ============================================================
 CREATE TABLE planos_condominio (
     plano_id      SERIAL PRIMARY KEY,

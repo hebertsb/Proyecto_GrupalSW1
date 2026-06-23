@@ -107,3 +107,14 @@ untitled*.py
 modelos/
 frontend-dist/
 
+# Documentación / diagramas / imágenes locales (no van al repo)
+*.docx
+*.doc
+*.xlsx
+*.pdf
+*.xml
+*.drawio
+apps/sivic_backend/diagramas/
+apps/sivic_backend/db/*.png
+PAPS_SIVIC.md
+

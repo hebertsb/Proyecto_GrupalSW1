@@ -32,7 +32,6 @@ INSTALLED_APPS = [
     "reglas",
     "eventos",
     "auditoria",
-    "datasets",
     "notificaciones",
     "pagos",
     "drf_spectacular",
@@ -111,7 +110,6 @@ SPECTACULAR_SETTINGS = {
         {"name": "Eventos",       "description": "Detecciones IA y gestión de alertas"},
         {"name": "Notificaciones", "description": "Historial de notificaciones push"},
         {"name": "Auditoría",     "description": "Logs de auditoría (solo admin)"},
-        {"name": "Datasets",      "description": "Datasets para re-entrenamiento IA"},
     ],
 }
 
