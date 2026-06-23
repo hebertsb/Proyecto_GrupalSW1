@@ -341,3 +341,22 @@ INSERT INTO plan_funcionalidades (plan_id, funcionalidad) VALUES
 ((SELECT plan_id FROM planes WHERE nombre = 'Premium'),  'detectar_parqueo'),
 ((SELECT plan_id FROM planes WHERE nombre = 'Premium'),  'detectar_mascotas'),
 ((SELECT plan_id FROM planes WHERE nombre = 'Premium'),  'generar_reportes');
+
+-- ============================================================
+-- 9. RELACIONES DE eventos_webhook_stripe
+-- ============================================================
+-- Esta tabla NO tiene FK explícitas porque actúa como registro de idempotencia:
+-- el webhook de Stripe puede llegar antes de que existan los registros relacionados.
+-- Las relaciones son lógicas a través del campo datos_evento (JSONB):
+--
+--   eventos_webhook_stripe
+--     └─(datos_evento->>'id')──────────────► suscripciones.stripe_suscripcion_id
+--     └─(datos_evento->>'invoice')──────────► pagos.stripe_factura_id
+--     └─(datos_evento->>'customer')─────────► condominio.stripe_cliente_id
+--
+-- Flujo de procesamiento:
+--   1. Stripe envía webhook → se inserta en eventos_webhook_stripe (idempotencia)
+--   2. Backend extrae stripe_suscripcion_id del datos_evento
+--   3. Actualiza suscripciones WHERE stripe_suscripcion_id = valor extraído
+--   4. Si es invoice.paid → inserta/actualiza en pagos
+-- ============================================================

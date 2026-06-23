@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors  (PEP 8)
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (imports no usados, variables indefinidas)
+    "I",   # isort   (orden de imports)
+    "N",   # pep8-naming (convenciones de nombres)
+]
+ignore = [
+    "E501",  # líneas largas — controlado por line-length
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["autenticacion", "camaras", "condominios", "core", "eventos", "reglas"]
