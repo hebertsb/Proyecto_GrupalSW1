@@ -377,7 +377,7 @@ def analizar_frame_persona(request):
             files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
             data={'camara_id': camara.camara_id if camara else 0,
                   'zonas_json': json.dumps(zonas),
-                  'umbral_merodeo': 999,
+                  'umbral_merodeo': 5,
                   'modo_filtro': modo_filtro},
             timeout=15,
         )
