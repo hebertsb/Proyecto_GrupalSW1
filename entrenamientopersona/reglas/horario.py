@@ -1,8 +1,10 @@
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, timezone, timedelta
 
+# Bolivia = UTC-4
+_TZ_BOLIVIA = timezone(timedelta(hours=-4))
 
 def _hora_actual() -> dtime:
-    return datetime.now().time()
+    return datetime.now(_TZ_BOLIVIA).time()
 
 
 def verificar_intrusion_nocturna(detecciones: list,
