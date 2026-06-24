@@ -379,7 +379,7 @@ def analizar_frame_persona(request):
             files={'file': ('frame.jpg', buf.tobytes(), 'image/jpeg')},
             data={'camara_id': camara.camara_id if camara else 0,
                   'zonas_json': json.dumps(zonas),
-                  'umbral_merodeo': 45,
+                  'umbral_merodeo': 10,
                   'modo_filtro': modo_filtro},
             timeout=15,
         )
@@ -569,7 +569,7 @@ def analizar_ia(request, pk):
         for z in camara.zonas_roi.all()
     ]
 
-    umbral_merodeo = request.data.get('umbral_merodeo', 45)
+    umbral_merodeo = request.data.get('umbral_merodeo', 10)
     modo_filtro = request.data.get('modo_filtro', 'todo')
 
     try:
