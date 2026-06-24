@@ -175,10 +175,10 @@ async def analizar(
     if modo_filtro in ["todo", "personas"]:
         personas  = persona_detector.detect(img) if persona_detector else []
     if modo_filtro in ["todo", "vehiculos"]:
-        vehiculos = vehiculo_detector.detect(img) if vehiculo_detector else []
+        vehiculos = vehiculo_detector.detect(img, conf_min=0.65) if vehiculo_detector else []
     if modo_filtro in ["todo", "mascotas"]:
-        perros = perro_correa_detector.detect(img, conf_min=0.40) if perro_correa_detector else []
-        heces = heces_detector.detect(img, conf_min=0.55) if heces_detector else []
+        perros = perro_correa_detector.detect(img, conf_min=0.70) if perro_correa_detector else []
+        heces = heces_detector.detect(img, conf_min=0.65) if heces_detector else []
         print(f"[DEBUG mascotas] perros={perros}, heces_count={len(heces)}")
 
     alertas_tipos   = []
