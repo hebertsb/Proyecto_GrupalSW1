@@ -308,6 +308,7 @@ INSERT INTO planes (nombre, precio_mensual) VALUES
 INSERT INTO reglas_infraccion (nombre_regla, descripcion) VALUES
 ('bloqueo_vehicular',      'Vehiculo estacionado en zona prohibida'),
 ('mascota_suelta',         'Mascota sin correa en areas comunes'),
+('heces_detectadas',       'Heces de mascota detectadas en area comun'),
 ('acceso_no_autorizado',   'Persona ingresando sin autorizacion'),
 ('exceso_velocidad',       'Vehiculo superando limite de velocidad interno'),
 ('persona_zona_restringida','Persona detectada en zona de acceso restringido'),

@@ -37,7 +37,7 @@ _MAPA_ALERTAS_GLOBAL = {
     'acceso_fuera_horario':      'acceso_fuera_horario',
     'vehiculo_mal_estacionado':  'bloqueo_vehicular',
     'perro_sin_correa':          'mascota_suelta',
-    'heces_detectadas':          'mascota_suelta',
+    'heces_detectadas':          'heces_detectadas',
 }
 
 

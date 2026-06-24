@@ -39,7 +39,8 @@ class PerroCorreaDetector:
                 conf = float(box.conf[0])
                 clase = r.names[int(box.cls[0])].lower()
                 # Si el modelo ya detectó "leash"/"correa" en el nombre → perro con correa
-                tiene_correa_modelo = "leash" in clase or "correa" in clase
+                # "dog-without-leash" contains "leash" → must exclude "without"
+                tiene_correa_modelo = ("leash" in clase or "correa" in clase) and "without" not in clase and "sin" not in clase
                 cajas_perros.append({
                     "bbox": [x1, y1, x2, y2],
                     "confianza": conf,
