@@ -25,8 +25,8 @@ class PerroCorreaDetector:
         # 1. Detectar perros con TU modelo
         results_custom = self.model_custom(img, verbose=False, conf=conf_min)
         
-        # 2. Detectar personas con YOLO base
-        results_base = self.model_base(img, verbose=False, conf=conf_min)
+        # 2. Detectar personas con YOLO base — siempre 0.30 para no perder dueños
+        results_base = self.model_base(img, verbose=False, conf=0.30)
         
         perros_finales = []
         cajas_perros = []

@@ -232,8 +232,11 @@ async def analizar(
 
     # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
     
-    # Extraemos personas con baja confianza para no perder dueños agachados recogiendo heces
-    personas_baja_conf = persona_detector.detect(img, conf_min=0.15) if persona_detector else personas
+    # Personas baja conf: solo necesarias si no corremos persona_detector ya (modo mascotas puro)
+    if modo_filtro == "mascotas":
+        personas_baja_conf = persona_detector.detect(img, conf_min=0.20) if persona_detector else []
+    else:
+        personas_baja_conf = persona_detector.detect(img, conf_min=0.15) if persona_detector else personas
     
     for ms in verificar_mascota_suelta(perros, personas_baja_conf, alto, ancho):
         alertas_tipos.append("perro_sin_correa")
