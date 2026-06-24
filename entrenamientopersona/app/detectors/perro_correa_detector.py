@@ -79,7 +79,8 @@ class PerroCorreaDetector:
                         break
 
             es_suelto = not tiene_correa
-            
+            print(f"[DEBUG perro] clase={p.get('clase','?')} tiene_correa={tiene_correa} suelto_explicito={suelto_explicito} es_suelto={es_suelto}")
+
             perros_finales.append({
                 "bbox": p["bbox"],
                 "confianza": round(p["confianza"], 3),
