@@ -36,6 +36,23 @@ vehiculo_estacionamiento_cls:  Optional[VehiculoEstacionamientoClassifier] = Non
 perro_correa_detector:         Optional[PerroCorreaDetector]              = None
 heces_detector:                Optional[HecesDetector]                    = None
 
+# ── Estado inter-frame para detección de movimiento ──────────────────────────
+# camara_id → frame gris (uint8, reducido a 160x120 para eficiencia)
+_frame_anterior: dict[int, np.ndarray] = {}
+_UMBRAL_MOVIMIENTO_PELEA = 0.07   # cambio promedio de píxeles >= 7% → hay movimiento real
+
+
+def _calcular_movimiento(camara_id: int, frame_actual: np.ndarray) -> float:
+    """Compara frame actual con el anterior de esa cámara. Retorna 0.0-1.0."""
+    pequeno = cv2.resize(frame_actual, (160, 120))
+    gris    = cv2.cvtColor(pequeno, cv2.COLOR_BGR2GRAY)
+    anterior = _frame_anterior.get(camara_id)
+    _frame_anterior[camara_id] = gris
+    if anterior is None:
+        return 0.0
+    diff = cv2.absdiff(gris, anterior)
+    return float(np.mean(diff)) / 255.0
+
 
 @app.on_event("startup")
 async def startup():
@@ -54,7 +71,7 @@ async def startup():
     except Exception as e: print(f"[SIVIC] Error HecesDetector: {e}")
     
     try:
-        pelea_classifier = PeleaClassifier(umbral=0.45)
+        pelea_classifier = PeleaClassifier(umbral=0.90)
         print("[SIVIC] PeleaClassifier cargado")
     except FileNotFoundError as e:
         print(f"[SIVIC] PeleaClassifier no disponible: {e}")
@@ -187,14 +204,16 @@ async def analizar(
             alertas_tipos.append("merodeo")
             alertas_detalle.append({"tipo": "merodeo", **m})
 
-    # 3. Pelea (mínimo 2 personas)
-    if pelea_classifier and len(personas) >= 2:
+    # 3. Pelea (mínimo 2 personas + movimiento real entre frames)
+    movimiento = _calcular_movimiento(camara_id, img)
+    if pelea_classifier and len(personas) >= 2 and movimiento >= _UMBRAL_MOVIMIENTO_PELEA:
         resultado_pelea = pelea_classifier.clasificar(img)
         if resultado_pelea["pelea"]:
             alertas_tipos.append("personas_peleando")
             alertas_detalle.append({
                 "tipo":      "personas_peleando",
                 "confianza": resultado_pelea["confianza"],
+                "movimiento": round(movimiento, 3),
             })
 
     # 4. Caída de persona

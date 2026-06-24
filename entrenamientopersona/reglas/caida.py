@@ -1,4 +1,4 @@
-_RATIO_CAIDA = 1.4  # bbox ancho/alto > 1.4 → persona horizontal = posible caída
+_RATIO_CAIDA = 2.2  # bbox ancho/alto > 2.2 → persona muy horizontal = posible caída (1.4 generaba falsos positivos con personas sentadas)
 
 
 def verificar_caida(detecciones: list) -> list:
