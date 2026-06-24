@@ -37,34 +37,41 @@ class PerroCorreaDetector:
             for box in r.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
-                # Tu modelo tiene clases "Dog-without-Leash", "Dangerous_Dogs", "dog leash"
-                # Aceptamos cualquiera de ellas como "Perro detectado por tu modelo"
-                cajas_perros.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
-                
+                clase = r.names[int(box.cls[0])].lower()
+                # Si el modelo ya detectó "leash"/"correa" en el nombre → perro con correa
+                tiene_correa_modelo = "leash" in clase or "correa" in clase
+                cajas_perros.append({
+                    "bbox": [x1, y1, x2, y2],
+                    "confianza": conf,
+                    "tiene_correa_modelo": tiene_correa_modelo,
+                })
+
         # Extraer personas del modelo base
         for r in results_base:
             for box in r.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 clase_idx = int(box.cls[0])
-                if clase_idx == 0: # Persona
-                    cajas_personas.append({"bbox": [x1, y1, x2, y2], "confianza": conf})
-                    
+                conf_per = float(box.conf[0])
+                if clase_idx == 0:  # Persona
+                    cajas_personas.append({"bbox": [x1, y1, x2, y2], "confianza": conf_per})
+
         # Aplicar heurística de proximidad
         for p in cajas_perros:
-            x1, y1, x2, y2 = p["bbox"]
-            px, py = (x1 + x2)/2, (y1 + y2)/2
-            
-            tiene_correa = False
-            
-            # Distancia a persona
-            for per in cajas_personas:
-                perx, pery = (per["bbox"][0] + per["bbox"][2])/2, (per["bbox"][1] + per["bbox"][3])/2
-                dist = ((px - perx)**2 + (py - pery)**2)**0.5
-                if dist < 250: # Dueño muy cerca
-                    tiene_correa = True
-                    print("[Logica] Dueño cerca del perro detectado por tu modelo, asumiendo correa.")
-                    break
-                                
+            # Si el modelo mismo detectó correa → no es suelto
+            tiene_correa = p.get("tiene_correa_modelo", False)
+
+            if not tiene_correa:
+                x1, y1, x2, y2 = p["bbox"]
+                px, py = (x1 + x2) / 2, (y1 + y2) / 2
+                for per in cajas_personas:
+                    perx = (per["bbox"][0] + per["bbox"][2]) / 2
+                    pery = (per["bbox"][1] + per["bbox"][3]) / 2
+                    dist = ((px - perx) ** 2 + (py - pery) ** 2) ** 0.5
+                    if dist < 400:  # umbral ampliado: dueño cerca
+                        tiene_correa = True
+                        print("[Logica] Dueño cerca del perro, asumiendo correa.")
+                        break
+
             es_suelto = not tiene_correa
             
             perros_finales.append({
