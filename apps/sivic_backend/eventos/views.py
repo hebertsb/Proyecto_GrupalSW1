@@ -54,7 +54,10 @@ class EventoViewSet(viewsets.ModelViewSet):
         if camara_id:
             qs = qs.filter(camara_id=camara_id)
         desde = timezone.now() - datetime.timedelta(days=dias)
-        return qs.filter(timestamp_deteccion__gte=desde)[:500]
+        qs = qs.filter(timestamp_deteccion__gte=desde)
+        if getattr(self, 'action', 'list') == 'list':
+            qs = qs[:500]
+        return qs
 
     @extend_schema(
         tags=["Eventos"],
