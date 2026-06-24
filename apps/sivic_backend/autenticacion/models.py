@@ -9,6 +9,7 @@ class Usuario(models.Model):
     email         = models.EmailField(max_length=100, unique=True)
     password_hash = models.TextField()
     rol           = models.CharField(max_length=20, choices=ROL_CHOICES)
+    fcm_token     = models.TextField(null=True, blank=True)
     condominio    = models.ForeignKey(
         "condominios.Condominio",
         on_delete=models.SET_NULL,

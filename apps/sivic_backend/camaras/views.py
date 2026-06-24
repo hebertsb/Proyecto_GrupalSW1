@@ -468,6 +468,26 @@ def analizar_frame_persona(request):
                         print(f"[SIVIC] WS enviado: {nombre_regla} cam={camara.camara_id}")
                     except Exception as ws_err:
                         print(f"[SIVIC] Error WS group_send: {ws_err}")
+
+                try:
+                    from autenticacion.models import Usuario as _UsuarioM
+                    from eventos.services_ia import notificar_guardias
+                    _guardias = list(
+                        _UsuarioM.objects.filter(
+                            rol__in=["guardia", "admin"],
+                            condominio_id=camara.condominio_id,
+                            fcm_token__isnull=False,
+                        ).exclude(fcm_token="")
+                        .values("usuario_id", "fcm_token")
+                    )
+                    if _guardias:
+                        notificar_guardias(evento, [
+                            {"usuario_id": g["usuario_id"], "token_fcm": g["fcm_token"]}
+                            for g in _guardias
+                        ])
+                except Exception as fcm_err:
+                    print(f"[SIVIC] Error FCM: {fcm_err}")
+
             except ReglaInfraccion.DoesNotExist:
                 print(f"[SIVIC] Regla no existe en DB: '{nombre_regla}' (alerta: {alerta})")
             except Exception as e:

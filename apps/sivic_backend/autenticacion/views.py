@@ -152,6 +152,17 @@ def gestionar_usuario(request, uid):
     return Response(UsuarioSerializer(usuario).data)
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def guardar_fcm_token(request):
+    token = request.data.get("token", "").strip()
+    if not token:
+        return Response({"error": "token requerido"}, status=status.HTTP_400_BAD_REQUEST)
+    request.user.fcm_token = token
+    request.user.save(update_fields=["fcm_token"])
+    return Response({"ok": True})
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def mi_plan(request):

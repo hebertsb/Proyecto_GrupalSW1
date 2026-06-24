@@ -9,4 +9,5 @@ urlpatterns = [
     path("mi-plan/",           views.mi_plan),
     path("usuarios/",              views.listar_usuarios),
     path("usuarios/<int:uid>/",    views.gestionar_usuario),
+    path("fcm-token/",             views.guardar_fcm_token),
 ]
