@@ -44,6 +44,7 @@ class PerroCorreaDetector:
                 cajas_perros.append({
                     "bbox": [x1, y1, x2, y2],
                     "confianza": conf,
+                    "clase": clase,
                     "tiene_correa_modelo": tiene_correa_modelo,
                 })
 
@@ -56,19 +57,23 @@ class PerroCorreaDetector:
                 if clase_idx == 0:  # Persona
                     cajas_personas.append({"bbox": [x1, y1, x2, y2], "confianza": conf_per})
 
-        # Aplicar heurística de proximidad
+        # Aplicar heurística de proximidad solo cuando el modelo no fue explícito
         for p in cajas_perros:
-            # Si el modelo mismo detectó correa → no es suelto
             tiene_correa = p.get("tiene_correa_modelo", False)
+            clase_perro  = p.get("clase", "")
 
-            if not tiene_correa:
+            # Modelo explicitó "sin correa" → confiar directamente, no aplicar proximidad
+            suelto_explicito = "without" in clase_perro or "sin" in clase_perro
+
+            if not tiene_correa and not suelto_explicito:
+                # Clase ambigua (ej: dangerous_dogs) → usar heurística de proximidad
                 x1, y1, x2, y2 = p["bbox"]
                 px, py = (x1 + x2) / 2, (y1 + y2) / 2
                 for per in cajas_personas:
                     perx = (per["bbox"][0] + per["bbox"][2]) / 2
                     pery = (per["bbox"][1] + per["bbox"][3]) / 2
                     dist = ((px - perx) ** 2 + (py - pery) ** 2) ** 0.5
-                    if dist < 400:  # umbral ampliado: dueño cerca
+                    if dist < 400:
                         tiene_correa = True
                         print("[Logica] Dueño cerca del perro, asumiendo correa.")
                         break
