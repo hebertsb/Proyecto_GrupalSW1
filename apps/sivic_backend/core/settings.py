@@ -13,7 +13,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", ".onrender.com", "98.93.156.209"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", ".onrender.com", "98.93.156.209", "d1jqycc8niopy2.cloudfront.net", ".compute-1.amazonaws.com"])
 
 INSTALLED_APPS = [
     "daphne",
@@ -147,6 +147,7 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[
     "http://localhost:4200",
     "http://127.0.0.1:4200",
     "http://sivic-frontend-demo.s3-website-us-east-1.amazonaws.com",
+    "https://d1jqycc8niopy2.cloudfront.net",
 ])
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True
