@@ -50,6 +50,31 @@ class PlacaOCR:
         # Quitar todo excepto letras y dígitos (Bolivia no usa guion en formato actual)
         return re.sub(r"[^A-Z0-9]", "", texto.upper().strip())
 
+    def buscar_placa_en_imagen(self, img_bgr: np.ndarray, conf_min: float = 0.30) -> dict:
+        """OCR directo sobre imagen completa — evalúa cada región individualmente."""
+        if img_bgr is None or img_bgr.size == 0:
+            return {"placa": None, "texto_raw": "", "confianza": 0.0,
+                    "legible": False, "formato_valido": False}
+        resultado = self.reader.readtext(
+            img_bgr, detail=1,
+            allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        )
+        for (_, texto, conf) in resultado:
+            limpio = self._limpiar(texto)
+            m = _PATRON_BUSCAR.search(limpio)
+            if m:
+                candidato = _corregir_candidato(m.group())
+                if _PATRON_BO.match(candidato) and conf >= conf_min:
+                    return {
+                        "placa":          candidato,
+                        "texto_raw":      limpio,
+                        "confianza":      round(conf, 3),
+                        "legible":        True,
+                        "formato_valido": True,
+                    }
+        return {"placa": None, "texto_raw": "", "confianza": 0.0,
+                "legible": False, "formato_valido": False}
+
     def leer(self, crop_bgr: np.ndarray) -> dict:
         """
         Recibe el recorte BGR de la región de placa (salida de PlacaDetector).

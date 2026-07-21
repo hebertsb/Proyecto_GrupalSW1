@@ -260,53 +260,53 @@ async def analizar(
                 "clase":     resultado_est["clase"],
             })
 
-    # ── Detección de PLACAS ───────────────────────────────────────────────────
-    if placa_detector and placa_ocr:
+    # ── Detección de PLACAS (OCR directo, sin YOLO) ──────────────────────────
+    if placa_ocr:
         import httpx
         placas_ya_procesadas = set()
-        # Vehículos con umbral bajo para obtener crops para detección de placas
-        vehiculos_para_placas = vehiculo_detector.detect(img, conf_min=0.30) if vehiculo_detector else []
-        print(f"[SIVIC] vehiculos para placas (conf>0.30): {len(vehiculos_para_placas)}")
-        imagenes_a_escanear = []
-        for vehiculo in vehiculos_para_placas:
-            x1, y1, x2, y2 = vehiculo["bbox"]
-            crop = img[max(0, y1):y2, max(0, x1):x2]
-            if crop.size > 0:
-                imagenes_a_escanear.append(("crop", crop))
-        if not imagenes_a_escanear:
-            imagenes_a_escanear = [img]  # fallback: imagen completa
-        for imagen in imagenes_a_escanear:
-            regiones = placa_detector.detect(imagen, conf_min=0.20)
-            print(f"[SIVIC] placas detectadas: {len(regiones)} en imagen {imagen.shape[:2]}")
-            for region in regiones:
-                resultado_ocr = placa_ocr.leer(region["crop"])
-                print(f"[SIVIC] OCR resultado: {resultado_ocr}")
-                if resultado_ocr["legible"] and resultado_ocr["placa"]:
-                    placa_texto = resultado_ocr["placa"]
-                    if placa_texto in placas_ya_procesadas:
-                        continue
-                    placas_ya_procesadas.add(placa_texto)
-                    try:
-                        resp = httpx.post(
-                            f"{DJANGO_BACKEND_URL}/api/placas/verificar/",
-                            json={
-                                "placa":      placa_texto,
-                                "camara_id":  camara_id,
-                                "confianza":  resultado_ocr["confianza"],
-                            },
-                            timeout=5.0,
-                        )
-                        datos = resp.json()
-                        print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
-                        if not datos.get("es_conocida", True):
-                            alertas_tipos.append("placa_desconocida")
-                            alertas_detalle.append({
-                                "tipo":    "placa_desconocida",
-                                "placa":   placa_texto,
-                                "confianza": resultado_ocr["confianza"],
-                            })
-                    except Exception as e:
-                        print(f"[SIVIC] Error verificando placa en Django: {e}")
+        h_img, w_img = img.shape[:2]
+        # Candidatos: imagen completa, mitad inferior, mitad inferior upscaled x2
+        mitad_inf = img[h_img // 2:, :]
+        candidatos_ocr = [img]
+        if mitad_inf.size > 0:
+            candidatos_ocr.append(mitad_inf)
+            candidatos_ocr.append(
+                cv2.resize(mitad_inf, (w_img * 2, (h_img - h_img // 2) * 2),
+                           interpolation=cv2.INTER_CUBIC)
+            )
+        for candidato in candidatos_ocr:
+            if candidato.size == 0:
+                continue
+            resultado_ocr = placa_ocr.buscar_placa_en_imagen(candidato)
+            print(f"[SIVIC] OCR directo: {resultado_ocr}")
+            if resultado_ocr["legible"] and resultado_ocr["placa"]:
+                placa_texto = resultado_ocr["placa"]
+                if placa_texto in placas_ya_procesadas:
+                    continue
+                placas_ya_procesadas.add(placa_texto)
+                try:
+                    resp = httpx.post(
+                        f"{DJANGO_BACKEND_URL}/api/placas/verificar/",
+                        json={
+                            "placa":      placa_texto,
+                            "camara_id":  camara_id,
+                            "confianza":  resultado_ocr["confianza"],
+                        },
+                        timeout=5.0,
+                    )
+                    datos = resp.json()
+                    print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
+                    if not datos.get("es_conocida", True):
+                        alertas_tipos.append("placa_desconocida")
+                        alertas_detalle.append({
+                            "tipo":    "placa_desconocida",
+                            "placa":   placa_texto,
+                            "confianza": resultado_ocr["confianza"],
+                        })
+                except Exception as e:
+                    print(f"[SIVIC] Error verificando placa en Django: {e}")
+            if placas_ya_procesadas:
+                break
 
     # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
     
