@@ -162,14 +162,21 @@ async def analizar(
     umbral_merodeo: int           = Form(30),
     modo_filtro:    str           = Form("todo"),
 ):
-    # 1. Decodificar la imagen enviada
+    # 1. Decodificar la imagen enviada (con corrección EXIF para fotos de celular)
     contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    try:
+        from PIL import Image, ImageOps
+        import io as _io
+        pil_img = ImageOps.exif_transpose(Image.open(_io.BytesIO(contents)))
+        img = cv2.cvtColor(np.array(pil_img.convert("RGB")), cv2.COLOR_RGB2BGR)
+    except Exception:
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img is None:
         return {"error": "Imagen inválida"}
-        
-    cv2.imwrite("last_image.jpg", img)
+
+    print(f"[SIVIC] Imagen recibida: {img.shape}")
+    cv2.imwrite("/app/last_image.jpg", img)
 
     # 2. Parsear zonas si vienen (para las reglas de cruce, etc.)
     zonas_dict = {}
