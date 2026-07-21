@@ -94,7 +94,13 @@ async def startup():
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _leer_imagen(contents: bytes):
-    img = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
+    try:
+        from PIL import Image, ImageOps
+        import io
+        pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(contents)))
+        img = cv2.cvtColor(np.array(pil_img.convert("RGB")), cv2.COLOR_RGB2BGR)
+    except Exception:
+        img = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
         raise HTTPException(400, "Imagen inválida")
     return img
