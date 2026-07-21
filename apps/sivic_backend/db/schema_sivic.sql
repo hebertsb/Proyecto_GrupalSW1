@@ -299,7 +299,30 @@ BEFORE INSERT OR UPDATE OF stripe_estado ON suscripciones
 FOR EACH ROW EXECUTE FUNCTION sincronizar_activo();
 
 -- ============================================================
--- 8. DATOS INICIALES
+-- 8. PLACAS VEHICULARES
+-- ============================================================
+CREATE TABLE placa_registrada (
+    id            SERIAL PRIMARY KEY,
+    condominio_id INT NOT NULL,
+    placa         VARCHAR(20) NOT NULL,
+    descripcion   TEXT,
+    activa        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (condominio_id, placa)
+);
+
+CREATE TABLE lectura_placa (
+    id            SERIAL PRIMARY KEY,
+    camara_id     INT,
+    placa_leida   VARCHAR(20) NOT NULL,
+    confianza     FLOAT,
+    es_conocida   BOOLEAN NOT NULL DEFAULT FALSE,
+    condominio_id INT NOT NULL,
+    timestamp     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- 9. DATOS INICIALES
 -- ============================================================
 INSERT INTO planes (nombre, precio_mensual) VALUES
 ('Basico',   49.99),
@@ -318,7 +341,8 @@ INSERT INTO reglas_infraccion (nombre_regla, descripcion) VALUES
 ('personas_peleando',      'Pelea o violencia fisica detectada entre personas'),
 ('caida_persona',          'Caida de persona detectada en area del condominio'),
 ('intrusion_nocturna',     'Persona detectada en horario nocturno (22:00-06:00)'),
-('acceso_fuera_horario',   'Persona en zona restringida fuera del horario permitido');
+('acceso_fuera_horario',   'Persona en zona restringida fuera del horario permitido'),
+('Placa no registrada',    'Vehiculo con placa no registrada en el condominio detectado');
 
 INSERT INTO plan_funcionalidades (plan_id, funcionalidad) VALUES
 ((SELECT plan_id FROM planes WHERE nombre = 'Basico'),   'detectar_parqueo'),

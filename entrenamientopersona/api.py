@@ -322,15 +322,19 @@ async def analizar(
                         },
                         timeout=5.0,
                     )
-                    datos = resp.json()
-                    print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
-                    if not datos.get("es_conocida", True):
-                        alertas_tipos.append("placa_desconocida")
-                        alertas_detalle.append({
-                            "tipo":    "placa_desconocida",
-                            "placa":   placa_texto,
-                            "confianza": resultado_ocr["confianza"],
-                        })
+                    print(f"[SIVIC] Django /verificar/ status={resp.status_code}")
+                    if resp.status_code != 200:
+                        print(f"[SIVIC] Django /verificar/ error: {resp.text[:300]}")
+                    else:
+                        datos = resp.json()
+                        print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
+                        if not datos.get("es_conocida", True):
+                            alertas_tipos.append("placa_desconocida")
+                            alertas_detalle.append({
+                                "tipo":    "placa_desconocida",
+                                "placa":   placa_texto,
+                                "confianza": resultado_ocr["confianza"],
+                            })
                 except Exception as e:
                     print(f"[SIVIC] Error verificando placa en Django: {e}")
             if placas_ya_procesadas:
