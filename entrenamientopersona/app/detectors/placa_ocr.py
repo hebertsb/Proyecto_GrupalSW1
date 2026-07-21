@@ -12,15 +12,17 @@ _PATRON_BUSCAR  = re.compile(r"\d{3,4}[A-Z0-9]{2,3}|[A-Z0-9]{2,3}\d{3,4}")
 
 
 def _corregir_candidato(c: str) -> str:
-    """1→L y 0→O en posiciones de letra dentro de la placa boliviana."""
+    """Corrige dígitos OCR en posiciones de letra: 0→O, 1→I, 5→S, 8→B."""
+    def _fix(s: str) -> str:
+        return s.replace("0", "O").replace("1", "I").replace("5", "S").replace("8", "B")
     # DDDD + LLL
     m = re.match(r"^(\d{3,4})([A-Z0-9]{2,3})$", c)
     if m:
-        return m.group(1) + m.group(2).replace("1", "L").replace("0", "O")
+        return m.group(1) + _fix(m.group(2))
     # LLL + DDDD
     m = re.match(r"^([A-Z0-9]{2,3})(\d{3,4})$", c)
     if m:
-        return m.group(1).replace("1", "L").replace("0", "O") + m.group(2)
+        return _fix(m.group(1)) + m.group(2)
     return c
 
 
