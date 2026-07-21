@@ -50,30 +50,45 @@ class PlacaOCR:
         # Quitar todo excepto letras y dígitos (Bolivia no usa guion en formato actual)
         return re.sub(r"[^A-Z0-9]", "", texto.upper().strip())
 
-    def buscar_placa_en_imagen(self, img_bgr: np.ndarray, conf_min: float = 0.30) -> dict:
-        """OCR directo sobre imagen completa — evalúa cada región individualmente."""
+    @staticmethod
+    def _mejorar(img: np.ndarray) -> np.ndarray:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        eq = clahe.apply(gray)
+        sharp = cv2.filter2D(eq, -1, np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]))
+        return cv2.cvtColor(sharp, cv2.COLOR_GRAY2BGR)
+
+    def _ocr(self, img: np.ndarray) -> list:
+        return self.reader.readtext(
+            img, detail=1,
+            allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            min_size=10,
+            text_threshold=0.3,
+            low_text=0.25,
+        )
+
+    def buscar_placa_en_imagen(self, img_bgr: np.ndarray, conf_min: float = 0.25) -> dict:
+        """OCR directo sobre imagen — intenta color y versión mejorada (CLAHE+sharpen)."""
         if img_bgr is None or img_bgr.size == 0:
             return {"placa": None, "texto_raw": "", "confianza": 0.0,
                     "legible": False, "formato_valido": False}
-        resultado = self.reader.readtext(
-            img_bgr, detail=1,
-            allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-            min_size=10,
-        )
-        print(f"[SIVIC] EasyOCR raw ({img_bgr.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
-        for (_, texto, conf) in resultado:
-            limpio = self._limpiar(texto)
-            m = _PATRON_BUSCAR.search(limpio)
-            if m:
-                candidato = _corregir_candidato(m.group())
-                if _PATRON_BO.match(candidato) and conf >= conf_min:
-                    return {
-                        "placa":          candidato,
-                        "texto_raw":      limpio,
-                        "confianza":      round(conf, 3),
-                        "legible":        True,
-                        "formato_valido": True,
-                    }
+        variantes = [img_bgr, self._mejorar(img_bgr)]
+        for variante in variantes:
+            resultado = self._ocr(variante)
+            print(f"[SIVIC] EasyOCR raw ({variante.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
+            for (_, texto, conf) in resultado:
+                limpio = self._limpiar(texto)
+                m = _PATRON_BUSCAR.search(limpio)
+                if m:
+                    candidato = _corregir_candidato(m.group())
+                    if _PATRON_BO.match(candidato) and conf >= conf_min:
+                        return {
+                            "placa":          candidato,
+                            "texto_raw":      limpio,
+                            "confianza":      round(conf, 3),
+                            "legible":        True,
+                            "formato_valido": True,
+                        }
         return {"placa": None, "texto_raw": "", "confianza": 0.0,
                 "legible": False, "formato_valido": False}
 
