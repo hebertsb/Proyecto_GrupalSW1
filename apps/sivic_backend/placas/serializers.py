@@ -8,7 +8,7 @@ class PlacaRegistradaSerializer(serializers.ModelSerializer):
     class Meta:
         model  = PlacaRegistrada
         fields = ["id", "condominio_id", "placa", "descripcion", "activa", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "condominio_id", "created_at"]
 
 
 class LecturaPlacaSerializer(serializers.ModelSerializer):
