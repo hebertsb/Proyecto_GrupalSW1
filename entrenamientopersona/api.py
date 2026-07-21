@@ -265,13 +265,14 @@ async def analizar(
         import httpx
         placas_ya_procesadas = set()
         h_img, w_img = img.shape[:2]
-        # Candidatos: imagen completa, mitad inferior, mitad inferior upscaled x2
-        mitad_inf = img[h_img // 2:, :]
-        candidatos_ocr = [img]
-        if mitad_inf.size > 0:
-            candidatos_ocr.append(mitad_inf)
+        # Upscale imagen completa x3 para mejorar detección de placas pequeñas
+        img_up = cv2.resize(img, (w_img * 3, h_img * 3), interpolation=cv2.INTER_CUBIC)
+        h_up, w_up = img_up.shape[:2]
+        tercio_inf = img_up[h_up * 2 // 3:, :]
+        candidatos_ocr = [img_up, tercio_inf]
+        if tercio_inf.size > 0:
             candidatos_ocr.append(
-                cv2.resize(mitad_inf, (w_img * 2, (h_img - h_img // 2) * 2),
+                cv2.resize(tercio_inf, (w_up * 2, (h_up - h_up * 2 // 3) * 2),
                            interpolation=cv2.INTER_CUBIC)
             )
         for candidato in candidatos_ocr:

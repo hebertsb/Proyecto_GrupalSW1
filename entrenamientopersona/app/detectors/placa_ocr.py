@@ -57,8 +57,10 @@ class PlacaOCR:
                     "legible": False, "formato_valido": False}
         resultado = self.reader.readtext(
             img_bgr, detail=1,
-            allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            min_size=10,
         )
+        print(f"[SIVIC] EasyOCR raw ({img_bgr.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
         for (_, texto, conf) in resultado:
             limpio = self._limpiar(texto)
             m = _PATRON_BUSCAR.search(limpio)
