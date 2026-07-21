@@ -279,17 +279,18 @@ async def analizar(
         import httpx
         placas_ya_procesadas = set()
         h_img, w_img = img.shape[:2]
-        # Cap dimensión máxima en 1920px (portrait o landscape)
-        escala = min(3, 1920 / max(h_img, w_img, 1))
-        img_up = cv2.resize(img, (int(w_img * escala), int(h_img * escala)), interpolation=cv2.INTER_CUBIC)
+        # Cap dimensión máxima en 1000px para limitar uso de RAM en EasyOCR
+        escala = min(2, 1000 / max(h_img, w_img, 1))
+        if escala > 1.0:
+            img_up = cv2.resize(img, (int(w_img * escala), int(h_img * escala)), interpolation=cv2.INTER_CUBIC)
+        else:
+            img_up = img
         h_up, w_up = img_up.shape[:2]
-        mitad_inf = img_up[h_up // 2:, :]          # mitad inferior (placa suele estar aquí)
-        tercio_inf = img_up[h_up * 2 // 3:, :]     # tercio inferior (más ajustado)
-        candidatos_ocr = [img_up]
-        if mitad_inf.size > 0:
-            candidatos_ocr.append(mitad_inf)
+        tercio_inf = img_up[h_up * 2 // 3:, :]     # tercio inferior (placa suele estar aquí)
+        candidatos_ocr = []
         if tercio_inf.size > 0:
             candidatos_ocr.append(tercio_inf)
+        candidatos_ocr.append(img_up)
         for candidato in candidatos_ocr:
             if candidato.size == 0:
                 continue
