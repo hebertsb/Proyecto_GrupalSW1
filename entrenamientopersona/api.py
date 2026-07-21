@@ -261,18 +261,26 @@ async def analizar(
             })
 
     # ── Detección de PLACAS ───────────────────────────────────────────────────
-    if placa_detector and placa_ocr and vehiculos:
+    if placa_detector and placa_ocr:
         import httpx
+        placas_ya_procesadas = set()
+        imagenes_a_escanear = [("full", img)]
         for vehiculo in vehiculos:
             x1, y1, x2, y2 = vehiculo["bbox"]
             crop = img[max(0, y1):y2, max(0, x1):x2]
-            if crop.size == 0:
-                continue
-            regiones = placa_detector.detect(crop)
+            if crop.size > 0:
+                imagenes_a_escanear.append(("crop", crop))
+        for _, imagen in imagenes_a_escanear:
+            regiones = placa_detector.detect(imagen)
+            print(f"[SIVIC] placas detectadas en imagen: {len(regiones)}")
             for region in regiones:
                 resultado_ocr = placa_ocr.leer(region["crop"])
+                print(f"[SIVIC] OCR resultado: {resultado_ocr}")
                 if resultado_ocr["legible"] and resultado_ocr["placa"]:
                     placa_texto = resultado_ocr["placa"]
+                    if placa_texto in placas_ya_procesadas:
+                        continue
+                    placas_ya_procesadas.add(placa_texto)
                     try:
                         resp = httpx.post(
                             f"{DJANGO_BACKEND_URL}/api/placas/verificar/",
@@ -284,6 +292,7 @@ async def analizar(
                             timeout=5.0,
                         )
                         datos = resp.json()
+                        print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
                         if not datos.get("es_conocida", True):
                             alertas_tipos.append("placa_desconocida")
                             alertas_detalle.append({
