@@ -1,13 +1,9 @@
-# Modelos pesados
-*.pt
-*.pth
+# Modelos pesados — todos los .pt/.pth de esta carpeta se suben al repo
 *.onnx
 *.weights
 models/
-!modelo_pelea.pth
-!modelo_condominio_final.pt
-!modelo_vehiculo_estacionamiento.pth
-!modelo_vehiculo_estacionamiento_v2.pth
+!*.pt
+!*.pth
 
 # Datos / datasets
 data/
