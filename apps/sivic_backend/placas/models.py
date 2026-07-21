@@ -2,7 +2,7 @@ from django.db import models
 
 
 class PlacaRegistrada(models.Model):
-    placa_id      = models.AutoField(primary_key=True)
+    placa_id      = models.AutoField(primary_key=True, db_column='id')
     condominio_id = models.IntegerField()
     placa         = models.CharField(max_length=20)
     descripcion   = models.TextField(null=True, blank=True)
@@ -19,7 +19,7 @@ class PlacaRegistrada(models.Model):
 
 
 class LecturaPlaca(models.Model):
-    lectura_id    = models.AutoField(primary_key=True)
+    lectura_id    = models.AutoField(primary_key=True, db_column='id')
     camara_id     = models.IntegerField(null=True)
     placa_leida   = models.CharField(max_length=20)
     confianza     = models.FloatField(null=True)
