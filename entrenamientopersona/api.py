@@ -264,15 +264,20 @@ async def analizar(
     if placa_detector and placa_ocr:
         import httpx
         placas_ya_procesadas = set()
-        imagenes_a_escanear = [("full", img)]
-        for vehiculo in vehiculos:
+        # Vehículos con umbral bajo para obtener crops para detección de placas
+        vehiculos_para_placas = vehiculo_detector.detect(img, conf_min=0.30) if vehiculo_detector else []
+        print(f"[SIVIC] vehiculos para placas (conf>0.30): {len(vehiculos_para_placas)}")
+        imagenes_a_escanear = []
+        for vehiculo in vehiculos_para_placas:
             x1, y1, x2, y2 = vehiculo["bbox"]
             crop = img[max(0, y1):y2, max(0, x1):x2]
             if crop.size > 0:
                 imagenes_a_escanear.append(("crop", crop))
-        for _, imagen in imagenes_a_escanear:
-            regiones = placa_detector.detect(imagen)
-            print(f"[SIVIC] placas detectadas en imagen: {len(regiones)}")
+        if not imagenes_a_escanear:
+            imagenes_a_escanear = [img]  # fallback: imagen completa
+        for imagen in imagenes_a_escanear:
+            regiones = placa_detector.detect(imagen, conf_min=0.20)
+            print(f"[SIVIC] placas detectadas: {len(regiones)} en imagen {imagen.shape[:2]}")
             for region in regiones:
                 resultado_ocr = placa_ocr.leer(region["crop"])
                 print(f"[SIVIC] OCR resultado: {resultado_ocr}")
