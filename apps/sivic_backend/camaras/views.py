@@ -344,15 +344,22 @@ def analizar_frame_persona(request):
         return Response({'error': 'Campo "imagen" requerido'}, status=400)
 
     try:
-        import cv2
-        datos = np.frombuffer(archivo.read(), dtype=np.uint8)
-        frame = cv2.imdecode(datos, cv2.IMREAD_COLOR)
+        import cv2, io as _io
+        raw = archivo.read()
+        # Corregir EXIF rotation (fotos de celular portrait guardadas como landscape)
+        try:
+            from PIL import Image, ImageOps
+            pil_img = ImageOps.exif_transpose(Image.open(_io.BytesIO(raw)))
+            frame = cv2.cvtColor(np.array(pil_img.convert('RGB')), cv2.COLOR_RGB2BGR)
+        except Exception:
+            datos = np.frombuffer(raw, dtype=np.uint8)
+            frame = cv2.imdecode(datos, cv2.IMREAD_COLOR)
         if frame is None:
             return Response({'error': 'Imagen inválida'}, status=400)
         h, w = frame.shape[:2]
         if w > 640:
             frame = cv2.resize(frame, (640, int(h * 640 / w)))
-        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
         if not ok:
             return Response({'error': 'Error al codificar imagen'}, status=500)
     except ImportError:
