@@ -7,7 +7,21 @@ import numpy as np
 #   1154AER / 4898ELK  → 4 dígitos + 3 letras  (2000 a hoy, más común)
 #   824EDH             → 3 dígitos + 3 letras  (1997+)
 #   CAL280 / SEK000    → 3 letras  + 3 dígitos (1987-1997)
-_PATRON_BO = re.compile(r"^(\d{3,4}[A-Z]{2,3}|[A-Z]{2,3}\d{3,4})$")
+_PATRON_BO      = re.compile(r"^(\d{3,4}[A-Z]{2,3}|[A-Z]{2,3}\d{3,4})$")
+_PATRON_BUSCAR  = re.compile(r"\d{3,4}[A-Z0-9]{2,3}|[A-Z0-9]{2,3}\d{3,4}")
+
+
+def _corregir_candidato(c: str) -> str:
+    """1→L y 0→O en posiciones de letra dentro de la placa boliviana."""
+    # DDDD + LLL
+    m = re.match(r"^(\d{3,4})([A-Z0-9]{2,3})$", c)
+    if m:
+        return m.group(1) + m.group(2).replace("1", "L").replace("0", "O")
+    # LLL + DDDD
+    m = re.match(r"^([A-Z0-9]{2,3})(\d{3,4})$", c)
+    if m:
+        return m.group(1).replace("1", "L").replace("0", "O") + m.group(2)
+    return c
 
 
 class PlacaOCR:
@@ -62,11 +76,19 @@ class PlacaOCR:
         texto     = self._limpiar(texto_raw)
         confianza = float(np.mean([r[2] for r in resultado])) if resultado else 0.0
 
-        es_valida = bool(_PATRON_BO.match(texto))
-        legible   = confianza >= self.conf_minima and len(texto) >= 6 and es_valida
+        # Buscar patrón dentro del texto completo (OCR puede capturar texto extra)
+        placa_encontrada = None
+        m = _PATRON_BUSCAR.search(texto)
+        if m:
+            candidato = _corregir_candidato(m.group())
+            if _PATRON_BO.match(candidato):
+                placa_encontrada = candidato
+
+        es_valida = placa_encontrada is not None
+        legible   = confianza >= self.conf_minima and es_valida
 
         return {
-            "placa":          texto if legible else None,
+            "placa":          placa_encontrada if legible else None,
             "texto_raw":      texto,
             "confianza":      round(confianza, 3),
             "legible":        legible,
