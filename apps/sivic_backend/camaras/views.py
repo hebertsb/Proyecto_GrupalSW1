@@ -38,6 +38,7 @@ _MAPA_ALERTAS_GLOBAL = {
     'vehiculo_mal_estacionado':  'bloqueo_vehicular',
     'perro_sin_correa':          'mascota_suelta',
     'heces_detectadas':          'heces_detectadas',
+    'placa_desconocida':         'placa_desconocida',
 }
 
 
