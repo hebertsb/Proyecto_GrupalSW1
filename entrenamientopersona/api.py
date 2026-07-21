@@ -161,6 +161,7 @@ async def analizar(
     zonas_json:     Optional[str] = Form(None),
     umbral_merodeo: int           = Form(30),
     modo_filtro:    str           = Form("todo"),
+    skip_placa:     str           = Form("0"),
 ):
     # 1. Decodificar la imagen enviada (con corrección EXIF para fotos de celular)
     contents = await file.read()
@@ -274,7 +275,7 @@ async def analizar(
             })
 
     # ── Detección de PLACAS (OCR directo, sin YOLO) ──────────────────────────
-    if placa_ocr:
+    if placa_ocr and skip_placa != "1":
         import httpx
         placas_ya_procesadas = set()
         h_img, w_img = img.shape[:2]
