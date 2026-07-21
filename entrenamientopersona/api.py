@@ -87,6 +87,17 @@ async def startup():
     try:
         placa_detector = PlacaDetector()
         placa_ocr      = PlacaOCR()
+        # Patch corrección OCR: 1→I, 5→S, 8→B (además de 0→O)
+        import re as _re
+        import app.detectors.placa_ocr as _pm
+        def _corregir_fix(c: str) -> str:
+            def _f(s): return s.replace("0","O").replace("1","I").replace("5","S").replace("8","B")
+            m = _re.match(r"^(\d{3,4})([A-Z0-9]{2,3})$", c)
+            if m: return m.group(1) + _f(m.group(2))
+            m = _re.match(r"^([A-Z0-9]{2,3})(\d{3,4})$", c)
+            if m: return _f(m.group(1)) + m.group(2)
+            return c
+        _pm._corregir_candidato = _corregir_fix
         print("[SIVIC] PlacaDetector + PlacaOCR cargados")
     except Exception as e:
         print(f"[SIVIC] PlacaDetector no disponible: {e}")
