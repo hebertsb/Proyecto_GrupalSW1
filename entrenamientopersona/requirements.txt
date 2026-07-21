@@ -8,3 +8,4 @@ python-multipart
 torch>=2.0
 torchvision>=0.15
 easyocr>=1.7.1
+httpx
