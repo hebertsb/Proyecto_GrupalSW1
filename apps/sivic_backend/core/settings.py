@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "notificaciones",
     "pagos",
     "datasets",
+    "placas",
     "drf_spectacular",
     "channels",
 ]

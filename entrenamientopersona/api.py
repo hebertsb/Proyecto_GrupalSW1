@@ -12,6 +12,8 @@ from app.classifiers.pelea_classifier import PeleaClassifier
 from app.classifiers.vehiculo_estacionamiento_classifier import VehiculoEstacionamientoClassifier
 from app.detectors.perro_correa_detector import PerroCorreaDetector
 from app.detectors.heces_detector import HecesDetector
+from app.detectors.placa_detector import PlacaDetector
+from app.detectors.placa_ocr import PlacaOCR
 from reglas.merodeo import limpiar_camara, verificar_merodeo
 from reglas.zona_restringida import verificar_zonas
 from reglas.caida import verificar_caida
@@ -35,6 +37,8 @@ pelea_classifier:              Optional[PeleaClassifier]                  = None
 vehiculo_estacionamiento_cls:  Optional[VehiculoEstacionamientoClassifier] = None
 perro_correa_detector:         Optional[PerroCorreaDetector]              = None
 heces_detector:                Optional[HecesDetector]                    = None
+placa_detector:                Optional[PlacaDetector]                    = None
+placa_ocr:                     Optional[PlacaOCR]                         = None
 
 # ── Estado inter-frame para detección de movimiento ──────────────────────────
 # camara_id → frame gris (uint8, reducido a 160x120 para eficiencia)
@@ -56,7 +60,7 @@ def _calcular_movimiento(camara_id: int, frame_actual: np.ndarray) -> float:
 
 @app.on_event("startup")
 async def startup():
-    global persona_detector, vehiculo_detector, pelea_classifier, vehiculo_estacionamiento_cls, perro_correa_detector, heces_detector
+    global persona_detector, vehiculo_detector, pelea_classifier, vehiculo_estacionamiento_cls, perro_correa_detector, heces_detector, placa_detector, placa_ocr
     persona_detector  = PersonaDetector()
     vehiculo_detector = VehiculoDetector()
     
@@ -80,6 +84,12 @@ async def startup():
         print("[SIVIC] VehiculoEstacionamientoClassifier cargado")
     except FileNotFoundError as e:
         print(f"[SIVIC] VehiculoEstacionamientoClassifier no disponible: {e}")
+    try:
+        placa_detector = PlacaDetector()
+        placa_ocr      = PlacaOCR()
+        print("[SIVIC] PlacaDetector + PlacaOCR cargados")
+    except Exception as e:
+        print(f"[SIVIC] PlacaDetector no disponible: {e}")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -249,6 +259,40 @@ async def analizar(
                 "confianza": resultado_est["confianza"],
                 "clase":     resultado_est["clase"],
             })
+
+    # ── Detección de PLACAS ───────────────────────────────────────────────────
+    if placa_detector and placa_ocr and vehiculos:
+        import httpx
+        for vehiculo in vehiculos:
+            x1, y1, x2, y2 = vehiculo["bbox"]
+            crop = img[max(0, y1):y2, max(0, x1):x2]
+            if crop.size == 0:
+                continue
+            regiones = placa_detector.detect(crop)
+            for region in regiones:
+                resultado_ocr = placa_ocr.leer(region["crop"])
+                if resultado_ocr["legible"] and resultado_ocr["placa"]:
+                    placa_texto = resultado_ocr["placa"]
+                    try:
+                        resp = httpx.post(
+                            f"{DJANGO_BACKEND_URL}/api/placas/verificar/",
+                            json={
+                                "placa":      placa_texto,
+                                "camara_id":  camara_id,
+                                "confianza":  resultado_ocr["confianza"],
+                            },
+                            timeout=5.0,
+                        )
+                        datos = resp.json()
+                        if not datos.get("es_conocida", True):
+                            alertas_tipos.append("placa_desconocida")
+                            alertas_detalle.append({
+                                "tipo":    "placa_desconocida",
+                                "placa":   placa_texto,
+                                "confianza": resultado_ocr["confianza"],
+                            })
+                    except Exception as e:
+                        print(f"[SIVIC] Error verificando placa en Django: {e}")
 
     # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
     

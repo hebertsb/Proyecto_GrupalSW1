@@ -24,12 +24,14 @@ services:
       - ./entrenamientopersona/modelo_vehiculo_estacionamiento_v2.pth:/app/modelo_vehiculo_estacionamiento_v2.pth:ro
       - ./entrenamientopersona/modelo_correa_nuevo.pt:/app/modelo_correa_nuevo.pt:ro
       - ./entrenamientopersona/modelo_heces.pt:/app/modelo_heces.pt:ro
+      - ./entrenamientopersona/modelo_placa.pt:/app/modelo_placa.pt:ro
     environment:
       PERSONA_MODEL_PATH:          /app/modelo_condominio_final.pt
       PELEA_MODEL_PATH:            /app/modelo_pelea.pth
       VEHICULO_EST_MODEL_PATH:     /app/modelo_vehiculo_estacionamiento_v2.pth
       PERRO_CORREA_MODEL_PATH:     /app/modelo_correa_nuevo.pt
       HECES_MODEL_PATH:            /app/modelo_heces.pt
+      PLACA_MODEL_PATH:            /app/modelo_placa.pt
       DJANGO_BACKEND_URL:          http://django:8000
     expose:
       - "8002"
