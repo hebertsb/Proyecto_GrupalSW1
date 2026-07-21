@@ -44,18 +44,20 @@ class PlacaRegistradaViewSet(viewsets.ModelViewSet):
         except Camara.DoesNotExist:
             return Response({"error": "camara no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        es_conocida = PlacaRegistrada.objects.filter(
+        placa_obj = PlacaRegistrada.objects.filter(
             condominio_id=condominio_id,
             placa=placa_texto,
             activa=True,
-        ).exists()
+        ).first()
+        es_conocida = placa_obj is not None
 
         LecturaPlaca.objects.create(
             camara_id=camara_id,
-            placa_leida=placa_texto,
-            confianza=confianza,
+            placa_texto=placa_texto,
+            confianza_ocr=confianza,
             es_conocida=es_conocida,
             condominio_id=condominio_id,
+            placa_registrada_id=placa_obj.id if placa_obj else None,
         )
 
         if not es_conocida:

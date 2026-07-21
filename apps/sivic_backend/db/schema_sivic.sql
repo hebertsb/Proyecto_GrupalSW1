@@ -301,25 +301,46 @@ FOR EACH ROW EXECUTE FUNCTION sincronizar_activo();
 -- ============================================================
 -- 8. PLACAS VEHICULARES
 -- ============================================================
+
 CREATE TABLE placa_registrada (
-    id            SERIAL PRIMARY KEY,
-    condominio_id INT NOT NULL,
-    placa         VARCHAR(20) NOT NULL,
-    descripcion   TEXT,
-    activa        BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (condominio_id, placa)
+    id              UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    condominio_id   INT         NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
+    placa           VARCHAR(10) NOT NULL,
+    descripcion     TEXT,
+    activa          BOOLEAN     NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_placa_por_condominio UNIQUE (condominio_id, placa)
 );
 
 CREATE TABLE lectura_placa (
-    id            SERIAL PRIMARY KEY,
-    camara_id     INT,
-    placa_leida   VARCHAR(20) NOT NULL,
-    confianza     FLOAT,
-    es_conocida   BOOLEAN NOT NULL DEFAULT FALSE,
-    condominio_id INT NOT NULL,
-    timestamp     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id                  UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    condominio_id       INT         NOT NULL REFERENCES condominio(condominio_id) ON DELETE CASCADE,
+    camara_id           INT         NOT NULL REFERENCES camaras(camara_id)       ON DELETE CASCADE,
+    placa_texto         VARCHAR(10),
+    confianza_yolo      NUMERIC(4,3),
+    confianza_ocr       NUMERIC(4,3),
+    es_conocida         BOOLEAN,
+    placa_registrada_id UUID        REFERENCES placa_registrada(id) ON DELETE SET NULL,
+    imagen_url          TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_lectura_condo_fecha    ON lectura_placa(condominio_id, created_at DESC);
+CREATE INDEX idx_lectura_placa_texto    ON lectura_placa(placa_texto) WHERE placa_texto IS NOT NULL;
+CREATE INDEX idx_lectura_desconocida    ON lectura_placa(condominio_id, created_at DESC) WHERE es_conocida = FALSE;
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_placa_registrada_updated_at
+    BEFORE UPDATE ON placa_registrada
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================
 -- 9. DATOS INICIALES
