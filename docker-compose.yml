@@ -25,6 +25,8 @@ services:
       - ./entrenamientopersona/modelo_correa_nuevo.pt:/app/modelo_correa_nuevo.pt:ro
       - ./entrenamientopersona/modelo_heces.pt:/app/modelo_heces.pt:ro
       - ./entrenamientopersona/modelo_placa.pt:/app/modelo_placa.pt:ro
+      - ./entrenamientopersona/api.py:/app/api.py:ro
+      - ./entrenamientopersona/app:/app/app:ro
     environment:
       PERSONA_MODEL_PATH:          /app/modelo_condominio_final.pt
       PELEA_MODEL_PATH:            /app/modelo_pelea.pth
