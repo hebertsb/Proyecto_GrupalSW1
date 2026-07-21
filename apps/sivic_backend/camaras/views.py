@@ -388,7 +388,7 @@ def analizar_frame_persona(request):
                   'zonas_json': json.dumps(zonas),
                   'umbral_merodeo': 10,
                   'modo_filtro': modo_filtro},
-            timeout=15,
+            timeout=30,
         )
         try:
             resultado = resp.json()

@@ -72,11 +72,12 @@ class PlacaOCR:
         if img_bgr is None or img_bgr.size == 0:
             return {"placa": None, "texto_raw": "", "confianza": 0.0,
                     "legible": False, "formato_valido": False}
-        variantes = [img_bgr, self._mejorar(img_bgr)]
-        for variante in variantes:
-            resultado = self._ocr(variante)
-            print(f"[SIVIC] EasyOCR raw ({variante.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
-            for (_, texto, conf) in resultado:
+        resultado = self._ocr(img_bgr)
+        print(f"[SIVIC] EasyOCR raw ({img_bgr.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
+        if not resultado:
+            resultado = self._ocr(self._mejorar(img_bgr))
+            print(f"[SIVIC] EasyOCR CLAHE ({img_bgr.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
+        for (_, texto, conf) in resultado:
                 limpio = self._limpiar(texto)
                 m = _PATRON_BUSCAR.search(limpio)
                 if m:
