@@ -81,8 +81,11 @@ class PlacaOCR:
             print(f"[SIVIC] EasyOCR CLAHE ({img_bgr.shape[:2]}): {[(r[1], round(r[2],2)) for r in resultado]}")
         for (_, texto, conf) in resultado:
                 limpio = self._limpiar(texto)
-                m = _PATRON_BUSCAR.search(limpio)
-                if m:
+                pos = 0
+                while pos < len(limpio):
+                    m = _PATRON_BUSCAR.search(limpio, pos)
+                    if not m:
+                        break
                     candidato = _corregir_candidato(m.group())
                     if _PATRON_BO.match(candidato) and conf >= conf_min:
                         return {
@@ -92,6 +95,7 @@ class PlacaOCR:
                             "legible":        True,
                             "formato_valido": True,
                         }
+                    pos = m.start() + 1
         return {"placa": None, "texto_raw": "", "confianza": 0.0,
                 "legible": False, "formato_valido": False}
 
