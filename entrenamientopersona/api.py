@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from typing import Optional
@@ -44,6 +45,10 @@ placa_ocr:                     Optional[PlacaOCR]                         = None
 # camara_id → frame gris (uint8, reducido a 160x120 para eficiencia)
 _frame_anterior: dict[int, np.ndarray] = {}
 _UMBRAL_MOVIMIENTO_PELEA = 0.07   # cambio promedio de píxeles >= 7% → hay movimiento real
+
+# ── Cache OCR: evita re-correr EasyOCR en la misma imagen ───────────────────
+# md5(bytes) → resultado_ocr dict
+_OCR_CACHE: dict[str, dict] = {}
 
 
 def _calcular_movimiento(camara_id: int, frame_actual: np.ndarray) -> float:
@@ -288,57 +293,62 @@ async def analizar(
     # ── Detección de PLACAS (OCR directo, sin YOLO) ──────────────────────────
     if placa_ocr and skip_placa != "1":
         import httpx
-        placas_ya_procesadas = set()
-        h_img, w_img = img.shape[:2]
-        # Cap dimensión máxima en 1000px para limitar uso de RAM en EasyOCR
-        escala = min(2, 1000 / max(h_img, w_img, 1))
-        if escala > 1.0:
-            img_up = cv2.resize(img, (int(w_img * escala), int(h_img * escala)), interpolation=cv2.INTER_CUBIC)
+        img_hash = hashlib.md5(contents).hexdigest()
+
+        # Cache hit: misma imagen ya procesada, saltar EasyOCR
+        resultado_ocr = _OCR_CACHE.get(img_hash)
+        if resultado_ocr is not None:
+            print(f"[SIVIC] OCR cache hit: {resultado_ocr}")
         else:
-            img_up = img
-        h_up, w_up = img_up.shape[:2]
-        tercio_inf = img_up[h_up * 2 // 3:, :]     # tercio inferior (placa suele estar aquí)
-        candidatos_ocr = []
-        if tercio_inf.size > 0:
-            candidatos_ocr.append(tercio_inf)
-        candidatos_ocr.append(img_up)
-        for candidato in candidatos_ocr:
-            if candidato.size == 0:
-                continue
-            resultado_ocr = placa_ocr.buscar_placa_en_imagen(candidato)
-            print(f"[SIVIC] OCR directo: {resultado_ocr}")
-            if resultado_ocr["legible"] and resultado_ocr["placa"]:
-                placa_texto = resultado_ocr["placa"]
-                if placa_texto in placas_ya_procesadas:
+            # Escalar imagen y construir candidatos
+            h_img, w_img = img.shape[:2]
+            escala = min(2, 1000 / max(h_img, w_img, 1))
+            img_up = cv2.resize(img, (int(w_img * escala), int(h_img * escala)), interpolation=cv2.INTER_CUBIC) if escala > 1.0 else img
+            h_up, w_up = img_up.shape[:2]
+            tercio_inf = img_up[h_up * 2 // 3:, :]
+            candidatos_ocr = [c for c in ([tercio_inf] if tercio_inf.size > 0 else []) + [img_up]]
+            resultado_ocr = {"placa": None, "confianza": 0.0, "legible": False, "formato_valido": False}
+            for candidato in candidatos_ocr:
+                if candidato.size == 0:
                     continue
-                placas_ya_procesadas.add(placa_texto)
-                try:
-                    resp = httpx.post(
-                        f"{DJANGO_BACKEND_URL}/api/placas/verificar/",
-                        json={
-                            "placa":      placa_texto,
-                            "camara_id":  camara_id,
-                            "confianza":  resultado_ocr["confianza"],
-                        },
-                        timeout=5.0,
-                    )
-                    print(f"[SIVIC] Django /verificar/ status={resp.status_code}")
-                    if resp.status_code != 200:
-                        print(f"[SIVIC] Django /verificar/ error: {resp.text[:300]}")
-                    else:
-                        datos = resp.json()
-                        print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
-                        if not datos.get("es_conocida", True):
-                            alertas_tipos.append("placa_desconocida")
-                            alertas_detalle.append({
-                                "tipo":    "placa_desconocida",
-                                "placa":   placa_texto,
-                                "confianza": resultado_ocr["confianza"],
-                            })
-                except Exception as e:
-                    print(f"[SIVIC] Error verificando placa en Django: {e}")
-            if placas_ya_procesadas:
-                break
+                r = placa_ocr.buscar_placa_en_imagen(candidato)
+                print(f"[SIVIC] OCR directo: {r}")
+                if r["legible"] and r["placa"]:
+                    resultado_ocr = r
+                    break
+            # Guardar en cache (legible o no, para evitar re-cómputo)
+            _OCR_CACHE[img_hash] = resultado_ocr
+            if len(_OCR_CACHE) > 100:
+                _OCR_CACHE.pop(next(iter(_OCR_CACHE)))
+
+        # Verificar placa con Django si se detectó
+        if resultado_ocr.get("legible") and resultado_ocr.get("placa"):
+            placa_texto = resultado_ocr["placa"]
+            try:
+                resp = httpx.post(
+                    f"{DJANGO_BACKEND_URL}/api/placas/verificar/",
+                    json={
+                        "placa":      placa_texto,
+                        "camara_id":  camara_id,
+                        "confianza":  resultado_ocr["confianza"],
+                    },
+                    timeout=5.0,
+                )
+                print(f"[SIVIC] Django /verificar/ status={resp.status_code}")
+                if resp.status_code != 200:
+                    print(f"[SIVIC] Django /verificar/ error: {resp.text[:300]}")
+                else:
+                    datos = resp.json()
+                    print(f"[SIVIC] Placa '{placa_texto}' verificada: {datos}")
+                    if not datos.get("es_conocida", True):
+                        alertas_tipos.append("placa_desconocida")
+                        alertas_detalle.append({
+                            "tipo":      "placa_desconocida",
+                            "placa":     placa_texto,
+                            "confianza": resultado_ocr["confianza"],
+                        })
+            except Exception as e:
+                print(f"[SIVIC] Error verificando placa en Django: {e}")
 
     # ── Alertas de MASCOTAS ───────────────────────────────────────────────────
     
