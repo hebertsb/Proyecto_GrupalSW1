@@ -589,7 +589,7 @@ def analizar_ia(request, pk):
                 'zonas_json':     json.dumps(zonas),
                 'umbral_merodeo': umbral_merodeo,
                 'modo_filtro':    modo_filtro,
-                'skip_placa':     '1',
+                'skip_placa':     '0' if modo_filtro == 'vehiculos' else '1',
             },
             timeout=5,
         )
