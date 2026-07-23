@@ -13,7 +13,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", ".onrender.com", "98.93.156.209", "d1jqycc8niopy2.cloudfront.net", ".compute-1.amazonaws.com"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", ".onrender.com", "98.93.156.209", "d1jqycc8niopy2.cloudfront.net", ".compute-1.amazonaws.com", "django"])
 
 INSTALLED_APPS = [
     "daphne",
